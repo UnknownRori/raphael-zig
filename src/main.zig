@@ -3,7 +3,7 @@ const lib = @import("raphael_zig_lib");
 
 pub fn main() !void {
     var gpa: std.heap.GeneralPurposeAllocator(.{}) = .init;
-    defer _ = gpa.deinit();
+    // defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
     const stdout_file = std.io.getStdOut().writer();
