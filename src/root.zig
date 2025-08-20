@@ -3,6 +3,8 @@ const std = @import("std");
 pub const TermFreq = @import("./tf.zig").TermFreq;
 pub const TermFreqIndex = @import("./tf.zig").TermFreqIndex;
 
+pub const Http = @import("./http/http.zig");
+
 const Allocator = std.mem.Allocator;
 
 pub fn cmd_index(allocator: Allocator, directory: []const u8) !void {
