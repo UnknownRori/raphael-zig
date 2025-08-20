@@ -74,19 +74,17 @@ pub const TermFreqIndex = struct {
         var tfi = TermFreqIndex.init(parent_allocator);
         const allocator = tfi.arena.allocator();
 
-        const a = try std.json.parseFromSlice(std.json.Value, allocator, contents, .{ .allocate = .alloc_always });
+        const a = try std.json.parseFromSlice(std.json.Value, parent_allocator, contents, .{ .allocate = .alloc_always });
         defer a.deinit();
 
         for (a.value.object.keys(), a.value.object.values()) |key, value| {
             var tf = TermFreq.init(allocator);
             for (value.object.keys(), value.object.values()) |key_tf, value_tf| {
-                // TODO : MEM LEAK
                 const term = try allocator.dupe(u8, key_tf);
 
                 try tf.map.put(term, @intCast(value_tf.integer));
             }
 
-            // TODO : MEM LEAK
             const name = try allocator.dupe(u8, key);
             try tfi.map.put(name, tf);
         }

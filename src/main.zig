@@ -35,7 +35,8 @@ pub fn main() !void {
 
     if (std.mem.eql(u8, "search", command)) {
         if (args.len <= 3) {
-            const tfi = try lib.load_index(allocator);
+            var tfi = try lib.load_index(allocator);
+            defer tfi.deinit();
             tfi.print();
             @panic("TODO: Not Implemented Yet");
         }
@@ -44,9 +45,10 @@ pub fn main() !void {
     }
 
     if (std.mem.eql(u8, "serve", command)) {
-        const tfi = try lib.load_index(allocator);
+        var tfi = try lib.load_index(allocator);
+        defer tfi.deinit();
         tfi.print();
 
-        @panic("TODO: Not Implemented Yet");
+        // @panic("TODO: Not Implemented Yet");
     }
 }
