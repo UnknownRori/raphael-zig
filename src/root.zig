@@ -27,6 +27,7 @@ pub fn cmd_index(allocator: Allocator, directory: []const u8) !void {
 
 pub fn load_index(allocator: Allocator) !TermFreqIndex {
     var str = std.ArrayList(u8).init(allocator);
+    defer str.deinit();
 
     var fd = try std.fs.cwd().openFile("index.json", .{});
     defer fd.close();
