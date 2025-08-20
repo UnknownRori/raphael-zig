@@ -95,6 +95,37 @@ pub const TermFreqIndex = struct {
         };
     }
 
+    /// This function create new [`TermFreqIndex`] based on contents
+    /// It will allocate memory for
+    ///     -> File path
+    ///     -> Term
+    /// TODO : Deallocate memory on deinit
+    pub fn fromJson(allocator: std.mem.Allocator, contents: []const u8) !Self {
+        var tfi = TermFreqIndex.init(allocator);
+        const a = try std.json.parseFromSlice(std.json.Value, allocator, contents, .{ .allocate = .alloc_always });
+        defer a.deinit();
+
+        for (a.value.object.keys(), a.value.object.values()) |key, value| {
+            var tf = TermFreq.init(allocator);
+            for (value.object.keys(), value.object.values()) |key_tf, value_tf| {
+                // TODO : MEM LEAK
+                const term = try allocator.dupe(u8, key_tf);
+
+                try tf.map.put(term, @intCast(value_tf.integer));
+            }
+
+            // TODO : MEM LEAK
+            const name = try allocator.dupe(u8, key);
+            try tfi.map.put(name, tf);
+        }
+        return tfi;
+    }
+
+    /// This function will index [`Dir`]
+    /// It will allocate memory for
+    ///     -> File contents
+    ///     -> File path
+    /// TODO : Deallocate memory on deinit
     pub fn index_recursive(self: *Self, dir: std.fs.Dir) !void {
         const lexer = Lexer.init(self.allocator);
 
@@ -129,12 +160,24 @@ pub const TermFreqIndex = struct {
         }
     }
 
+    /// This function will index [`Dir`]
+    /// It will allocate memory for
+    ///     -> File contents
+    ///     -> File path
+    /// TODO : Deallocate memory on deinit
     pub fn index(self: *Self, directory: []const u8) !void {
         var dir = try std.fs.cwd().openDir(directory, .{ .iterate = true });
         defer dir.close();
 
         std.debug.print("Parsing directory: {s} \n", .{directory});
         try self.index_recursive(dir);
+    }
+
+    pub fn print(self: Self) void {
+        var tfi_iter = self.map.iterator();
+        while (tfi_iter.next()) |e| {
+            std.debug.print("{s}\n", .{e.key_ptr.*});
+        }
     }
 
     pub fn serializeJson(self: Self, jw: anytype) !void {
