@@ -42,6 +42,18 @@ pub const TermFreq = struct {
         try jw.endObject();
     }
 
+    pub fn search(self: Self, term: []const u8) u32 {
+        var weight: u32 = 0;
+        var tokens = std.mem.tokenizeSequence(u8, term, " ");
+        while (tokens.next()) |token| {
+            const value = self.map.get(token);
+            if (value != null) {
+                weight += value.?;
+            }
+        }
+        return weight;
+    }
+
     pub fn deinit(self: *Self) void {
         self.map.deinit();
     }
@@ -152,7 +164,51 @@ pub const TermFreqIndex = struct {
         try jw.endObject();
     }
 
+    /// Search term will return a file path to that directory and the weight it already sorted
+    /// It memory managed by [`TermFreqIndex`] as long this still exist
+    /// the data still valid
+    pub fn search(self: *Self, term: []const u8) !std.ArrayList(SearchResult) {
+        const allocator = self.arena.allocator();
+
+        var result = std.ArrayList(SearchResult).init(allocator);
+
+        var tfi_iter = self.map.iterator();
+        while (tfi_iter.next()) |e| {
+            const weight: u32 = e.value_ptr.*.search(term);
+            if (weight == 0) continue;
+            const search_result = SearchResult.init(e.key_ptr.*, weight);
+            try result.append(search_result);
+        }
+
+        std.mem.sort(SearchResult, result.items, {}, SearchResult.compareAsc);
+
+        return result;
+    }
+
     pub fn deinit(self: *Self) void {
         self.arena.deinit();
+    }
+};
+
+pub const SearchResult = struct {
+    filepath: []const u8,
+    weight: u32,
+
+    const Self = @This();
+
+    pub fn init(filepath: []const u8, weight: u32) Self {
+        return Self{
+            .filepath = filepath,
+            .weight = weight,
+        };
+    }
+
+    pub fn compareAsc(context: void, lhs: Self, rhs: Self) bool {
+        _ = context;
+        return lhs.weight > rhs.weight;
+    }
+
+    pub fn print(self: Self) void {
+        std.debug.print("{s} -> {d}\n", .{ self.filepath, self.weight });
     }
 };

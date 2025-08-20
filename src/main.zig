@@ -28,6 +28,7 @@ pub fn main() !void {
         if (args.len <= 3) {
             const directory = args[2];
             try lib.cmd_index(allocator, directory);
+            return;
         }
 
         try stdout.print("Usage {s} index <directory>\n", .{args[0]});
@@ -35,10 +36,16 @@ pub fn main() !void {
 
     if (std.mem.eql(u8, "search", command)) {
         if (args.len <= 3) {
+            const search = args[2];
+
             var tfi = try lib.load_index(allocator);
             defer tfi.deinit();
-            tfi.print();
-            @panic("TODO: Not Implemented Yet");
+
+            const result = try tfi.search(search);
+            for (result.items) |item| {
+                item.print();
+            }
+            return;
         }
 
         try stdout.print("Usage {s} search <term>\n", .{args[0]});
