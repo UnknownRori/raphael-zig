@@ -95,16 +95,19 @@ pub const TermFreqIndex = struct {
         };
     }
 
-    pub fn index(self: *Self, directory: []const u8) !void {
-        var dir = try std.fs.cwd().openDir(directory, .{ .iterate = true });
-        defer dir.close();
-
+    pub fn index_recursive(self: *Self, dir: std.fs.Dir) !void {
         const lexer = Lexer.init(self.allocator);
 
         var it = dir.iterate();
         while (try it.next()) |val| {
             // Skip non md file
             // TODO : Make it work with .txt too and recursively
+            if (val.kind == .directory) {
+                var new_dir = try dir.openDir(val.name, .{ .iterate = true });
+                defer new_dir.close();
+                try self.index_recursive(new_dir);
+            }
+
             if (!std.mem.containsAtLeast(u8, val.name, 1, ".md") or val.kind != .file) {
                 continue;
             }
@@ -119,10 +122,19 @@ pub const TermFreqIndex = struct {
                 std.debug.print("[-] Caught and error", .{});
                 continue;
             };
-            std.debug.print("----- {s} -----\n", .{val.name});
-            const name = try self.allocator.dupe(u8, val.name);
+            // TODO : MEM LEAK
+            const name = try dir.realpathAlloc(self.allocator, val.name);
+            std.debug.print("\t - {s} \n", .{name});
             try self.map.put(name, tf);
         }
+    }
+
+    pub fn index(self: *Self, directory: []const u8) !void {
+        var dir = try std.fs.cwd().openDir(directory, .{ .iterate = true });
+        defer dir.close();
+
+        std.debug.print("Parsing directory: {s} \n", .{directory});
+        try self.index_recursive(dir);
     }
 
     pub fn serializeJson(self: Self, jw: anytype) !void {
