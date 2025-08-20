@@ -3,6 +3,7 @@ const lib = @import("raphael_zig_lib");
 
 pub fn main() !void {
     var gpa: std.heap.GeneralPurposeAllocator(.{}) = .init;
+    defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
     const stdout_file = std.io.getStdOut().writer();
@@ -19,7 +20,6 @@ pub fn main() !void {
         try stdout.print("\t search <term>\n", .{});
         try stdout.print("\t serve\n", .{});
         try bw.flush();
-        std.process.exit(1);
     }
 
     const command = args[1];
@@ -28,11 +28,9 @@ pub fn main() !void {
         if (args.len <= 3) {
             const directory = args[2];
             try lib.cmd_index(allocator, directory);
-            std.process.exit(0);
         }
 
         try stdout.print("Usage {s} index <directory>\n", .{args[0]});
-        std.process.exit(1);
     }
 
     if (std.mem.eql(u8, "search", command)) {
@@ -43,7 +41,6 @@ pub fn main() !void {
         }
 
         try stdout.print("Usage {s} search <term>\n", .{args[0]});
-        std.process.exit(1);
     }
 
     if (std.mem.eql(u8, "serve", command)) {
@@ -52,6 +49,4 @@ pub fn main() !void {
 
         @panic("TODO: Not Implemented Yet");
     }
-
-    unreachable;
 }

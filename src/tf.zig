@@ -50,11 +50,13 @@ pub const TermFreq = struct {
 pub const TermFreqIndex = struct {
     map: std.StringHashMap(TermFreq),
     allocator: std.mem.Allocator,
+    arena: std.heap.ArenaAllocator,
     const Self = @This();
 
     pub fn init(allocator: std.mem.Allocator) Self {
         return Self{
             .map = std.StringHashMap(TermFreq).init(allocator),
+            .arena = std.heap.ArenaAllocator.init(allocator),
             .allocator = allocator,
         };
     }
@@ -62,17 +64,16 @@ pub const TermFreqIndex = struct {
     pub fn from(map: std.StringHashMap(TermFreq)) Self {
         return Self{
             .map = map,
+            .arena = std.heap.ArenaAllocator.init(map.allocator),
             .allocator = map.allocator,
         };
     }
 
     /// This function create new [`TermFreqIndex`] based on contents
-    /// It will allocate memory for
-    ///     -> File path
-    ///     -> Term
-    /// TODO : Deallocate memory on deinit
-    pub fn fromJson(allocator: std.mem.Allocator, contents: []const u8) !Self {
-        var tfi = TermFreqIndex.init(allocator);
+    pub fn fromJson(parent_allocator: std.mem.Allocator, contents: []const u8) !Self {
+        var tfi = TermFreqIndex.init(parent_allocator);
+        const allocator = tfi.arena.allocator();
+
         const a = try std.json.parseFromSlice(std.json.Value, allocator, contents, .{ .allocate = .alloc_always });
         defer a.deinit();
 
@@ -93,12 +94,9 @@ pub const TermFreqIndex = struct {
     }
 
     /// This function will index [`Dir`]
-    /// It will allocate memory for
-    ///     -> File contents
-    ///     -> File path
-    /// TODO : Deallocate memory on deinit
     pub fn index_recursive(self: *Self, dir: std.fs.Dir) !void {
-        const lexer = Lexer.init(self.allocator);
+        const allocator = self.arena.allocator();
+        const lexer = Lexer.init(allocator);
 
         var it = dir.iterate();
         while (try it.next()) |val| {
@@ -114,8 +112,7 @@ pub const TermFreqIndex = struct {
                 continue;
             }
 
-            // TODO: MEM LEAK
-            const file = try dir.readFileAlloc(self.allocator, val.name, 4096);
+            const file = try dir.readFileAlloc(allocator, val.name, 4096);
 
             const tf_map = lexer.parse(file) catch |err| {
                 if (err == std.mem.Allocator.Error.OutOfMemory) {
@@ -124,19 +121,14 @@ pub const TermFreqIndex = struct {
                 std.debug.print("[-] Caught and error", .{});
                 continue;
             };
-            // TODO : MEM LEAK
-            const name = try dir.realpathAlloc(self.allocator, val.name);
+            const name = try dir.realpathAlloc(allocator, val.name);
             const tf = TermFreq.from(tf_map);
             std.debug.print("\t - {s} \n", .{name});
             try self.map.put(name, tf);
         }
     }
 
-    /// This function will index [`Dir`]
-    /// It will allocate memory for
-    ///     -> File contents
-    ///     -> File path
-    /// TODO : Deallocate memory on deinit
+    /// This function will index directory path
     pub fn index(self: *Self, directory: []const u8) !void {
         var dir = try std.fs.cwd().openDir(directory, .{ .iterate = true });
         defer dir.close();
@@ -163,11 +155,6 @@ pub const TermFreqIndex = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        var tfi_iter = self.map.iterator();
-        while (tfi_iter.next()) |e| {
-            self.allocator.free(e.key_ptr.*);
-            e.value_ptr.*.deinit();
-        }
-        self.map.deinit();
+        self.arena.deinit();
     }
 };
