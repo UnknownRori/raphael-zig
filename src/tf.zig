@@ -118,11 +118,15 @@ pub const TermFreqIndex = struct {
                 try self.index_recursive(new_dir);
             }
 
-            if (!std.mem.containsAtLeast(u8, val.name, 1, ".md") or val.kind != .file) {
+            if (!std.mem.containsAtLeast(u8, val.name, 1, ".md") or
+                std.mem.containsAtLeast(u8, val.name, 1, "excalidraw") or val.kind != .file)
+            {
                 continue;
             }
 
-            const file = try dir.readFileAlloc(allocator, val.name, 4096);
+            std.debug.print("Reading: {s}\n", .{val.name});
+            const stat = try dir.statFile(val.name);
+            const file = try dir.readFileAlloc(allocator, val.name, stat.size);
 
             const tf_map = lexer.parse(file) catch |err| {
                 if (err == std.mem.Allocator.Error.OutOfMemory) {
@@ -133,7 +137,6 @@ pub const TermFreqIndex = struct {
             };
             const name = try dir.realpathAlloc(allocator, val.name);
             const tf = TermFreq.from(tf_map);
-            std.debug.print("\t - {s} \n", .{name});
             try self.map.put(name, tf);
         }
     }
