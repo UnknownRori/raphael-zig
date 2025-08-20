@@ -1,56 +1,57 @@
 const std = @import("std");
 const lib = @import("raphael_zig_lib");
 
-// pub fn main() !void {
-//     var gpa: std.heap.GeneralPurposeAllocator(.{}) = .init;
-//     const allocator = gpa.allocator();
-//
-//     var str = std.ArrayList(u8).init(allocator);
-//
-//     var fd = try std.fs.cwd().openFile("index.json", .{});
-//     defer fd.close();
-//     var buf_reader = std.io.bufferedReader(fd.reader());
-//     var in_reader = buf_reader.reader();
-//
-//     var buf: [1024]u8 = undefined;
-//     while (try in_reader.readUntilDelimiterOrEof(&buf, '\n')) |line| {
-//         try str.appendSlice(line);
-//         try str.append('\n');
-//     }
-//     var tfi = try lib.TermFreqIndex.fromJson(allocator, str.items);
-//     defer tfi.deinit();
-//     tfi.print();
-// }
-
 pub fn main() !void {
     var gpa: std.heap.GeneralPurposeAllocator(.{}) = .init;
-    // defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
     const stdout_file = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_file);
     const stdout = bw.writer();
 
-    var tfi = lib.TermFreqIndex.init(allocator);
-    defer tfi.deinit();
+    const args = try std.process.argsAlloc(allocator);
+    defer std.process.argsFree(allocator, args);
 
-    try tfi.index("./data/");
+    if (args.len <= 1) {
+        try stdout.print("Usage {s} <command>\n", .{args[0]});
+        try stdout.print("Command: \n", .{});
+        try stdout.print("\t index  <directory>\n", .{});
+        try stdout.print("\t search <term>\n", .{});
+        try stdout.print("\t serve\n", .{});
+        try bw.flush();
+        std.process.exit(1);
+    }
 
-    var buffer = std.ArrayList(u8).init(allocator);
-    defer buffer.deinit();
+    const command = args[1];
 
-    var jw = std.json.writeStream(buffer.writer(), .{ .whitespace = .indent_1 });
-    defer jw.deinit();
-    try tfi.serializeJson(&jw);
+    if (std.mem.eql(u8, "index", command)) {
+        if (args.len <= 3) {
+            const directory = args[2];
+            try lib.cmd_index(allocator, directory);
+            std.process.exit(0);
+        }
 
-    var index_file = try std.fs.cwd().createFile("index.json", .{});
-    defer index_file.close();
-    try index_file.writeAll(buffer.items);
+        try stdout.print("Usage {s} index <directory>\n", .{args[0]});
+        std.process.exit(1);
+    }
 
-    _ = stdout;
-    try bw.flush();
+    if (std.mem.eql(u8, "search", command)) {
+        if (args.len <= 3) {
+            const tfi = try lib.load_index(allocator);
+            tfi.print();
+            @panic("TODO: Not Implemented Yet");
+        }
 
-    // TODO: FIX MEMORY LEAK
-    // const leaks = gpa.detectLeaks();
-    // std.debug.print("has leaks : {}", .{leaks});
+        try stdout.print("Usage {s} search <term>\n", .{args[0]});
+        std.process.exit(1);
+    }
+
+    if (std.mem.eql(u8, "serve", command)) {
+        const tfi = try lib.load_index(allocator);
+        tfi.print();
+
+        @panic("TODO: Not Implemented Yet");
+    }
+
+    unreachable;
 }
