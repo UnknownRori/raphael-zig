@@ -1,5 +1,6 @@
 const std = @import("std");
 
+pub const Lexer = @import("./lexer.zig").Lexer;
 pub const TermFreq = @import("./tf.zig").TermFreq;
 pub const TermFreqIndex = @import("./tf.zig").TermFreqIndex;
 

@@ -2,8 +2,8 @@ const std = @import("std");
 const lib = @import("raphael_zig_lib");
 
 pub fn main() !void {
-    var gpa: std.heap.GeneralPurposeAllocator(.{}) = .init;
-    defer _ = gpa.deinit();
+    var gpa: std.heap.GeneralPurposeAllocator(.{ .thread_safe = true }) = .init;
+    // defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
     const stdout_file = std.io.getStdOut().writer();
@@ -20,6 +20,7 @@ pub fn main() !void {
         try stdout.print("\t search <term>\n", .{});
         try stdout.print("\t serve\n", .{});
         try bw.flush();
+        return;
     }
 
     const command = args[1];
@@ -54,7 +55,8 @@ pub fn main() !void {
     if (std.mem.eql(u8, "serve", command)) {
         var tfi = try lib.load_index(allocator);
         defer tfi.deinit();
-        tfi.print();
+        var server = try lib.Http.Server.init(allocator, "127.0.0.1", 6969);
+        try server.listen();
 
         // @panic("TODO: Not Implemented Yet");
     }

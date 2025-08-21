@@ -18,6 +18,26 @@ pub const TermFreq = struct {
         };
     }
 
+    pub fn parse(allocator: Allocator, contents: []const u8) !Self {
+        var tf_map = std.StringHashMap(u32).init(allocator);
+
+        var lexer = Lexer.init(contents);
+        while (lexer.next()) |item| {
+            const token = try std.ascii.allocUpperString(allocator, item);
+            if (tf_map.contains(token)) {
+                const entry = tf_map.getEntry(token).?;
+                entry.value_ptr.* = @as(u32, 1);
+                continue;
+            }
+            _ = try tf_map.getOrPutValue(token, 1);
+        }
+
+        return Self{
+            .map = tf_map,
+            .allocator = allocator,
+        };
+    }
+
     pub fn from(map: std.StringHashMap(u32)) Self {
         return Self{
             .map = map,
@@ -51,16 +71,15 @@ pub const TermFreq = struct {
         return weight;
     }
 
-    pub fn search(self: Self, term: []const u8) u32 {
-        var weight: u32 = 0;
-        var tokens = std.mem.tokenizeSequence(u8, term, " ");
-        while (tokens.next()) |token| {
-            const value = self.map.get(token);
-            if (value != null) {
-                weight += value.?;
-            }
-        }
-        return weight;
+    pub fn getOr(self: Self, token: []const u8, default: u32) u32 {
+        const value = self.map.get(token);
+        if (value == null) return default;
+        return value.?;
+    }
+
+    pub fn contains(self: Self, token: []const u8) bool {
+        if (self.map.get(token) != null) return true;
+        return false;
     }
 
     pub fn deinit(self: *Self) void {
@@ -99,15 +118,15 @@ pub const TermFreqIndex = struct {
         defer a.deinit();
 
         for (a.value.object.keys(), a.value.object.values()) |key, value| {
-            var tf = TermFreq.init(allocator);
+            var tf_map = TermFreq.init(allocator);
             for (value.object.keys(), value.object.values()) |key_tf, value_tf| {
                 const term = try allocator.dupe(u8, key_tf);
 
-                try tf.map.put(term, @intCast(value_tf.integer));
+                try tf_map.map.put(term, @intCast(value_tf.integer));
             }
 
             const name = try allocator.dupe(u8, key);
-            try tfi.map.put(name, tf);
+            try tfi.map.put(name, tf_map);
         }
         return tfi;
     }
@@ -115,7 +134,6 @@ pub const TermFreqIndex = struct {
     /// This function will index [`Dir`]
     pub fn index_recursive(self: *Self, dir: std.fs.Dir) !void {
         const allocator = self.arena.allocator();
-        const lexer = Lexer.init(allocator);
 
         var it = dir.iterate();
         while (try it.next()) |val| {
@@ -139,7 +157,7 @@ pub const TermFreqIndex = struct {
             const stat = try dir.statFile(val.name);
             const file = try dir.readFileAlloc(allocator, val.name, stat.size);
 
-            const tf_map = lexer.parse(file) catch |err| {
+            const tf_map = TermFreq.parse(allocator, file) catch |err| {
                 if (err == std.mem.Allocator.Error.OutOfMemory) {
                     @panic("[-] Buy more RAM yo, lol\n");
                 }
@@ -147,8 +165,7 @@ pub const TermFreqIndex = struct {
                 continue;
             };
             const name = try dir.realpathAlloc(allocator, val.name);
-            const tf = TermFreq.from(tf_map);
-            try self.map.put(name, tf);
+            try self.map.put(name, tf_map);
         }
     }
 
@@ -188,30 +205,16 @@ pub const TermFreqIndex = struct {
         const allocator = self.arena.allocator();
 
         var result = std.ArrayList(SearchResult).init(allocator);
-        var count: u32 = 0;
 
         var tfi_iter = self.map.iterator();
         while (tfi_iter.next()) |e| {
-            if (e.value_ptr.search(term) != 0) {
-                count += 1;
+            var lexer = Lexer.init(term);
+            var rank: f32 = 0;
+
+            while (lexer.next()) |token| {
+                rank += tf(e.value_ptr.*, token) * idf(self.*, token);
             }
-        }
-
-        const count_float: f32 = @floatFromInt(count);
-        const total: f32 = @floatFromInt(self.map.capacity());
-
-        var tfi_iter0 = self.map.iterator();
-        while (tfi_iter0.next()) |e| {
-            const weight: f32 = @floatFromInt(e.value_ptr.*.search(term));
-            if (weight == 0) continue;
-
-            const sum: f32 = @floatFromInt(e.value_ptr.*.sum());
-            const weight_result = (weight / sum) * std.math.log10(total / count_float);
-            const search_result = SearchResult.init(
-                e.key_ptr.*,
-                weight_result,
-            );
-            try result.append(search_result);
+            try result.append(SearchResult.init(e.key_ptr.*, rank));
         }
 
         std.mem.sort(SearchResult, result.items, {}, SearchResult.compareAsc);
@@ -246,3 +249,24 @@ pub const SearchResult = struct {
         std.debug.print("{s} -> {d}\n", .{ std.fs.path.basename(self.filepath), self.weight });
     }
 };
+
+fn tf(tf_table: TermFreq, term: []const u8) f32 {
+    const a: f32 = @floatFromInt(tf_table.getOr(term, 1));
+    const b: f32 = @floatFromInt(tf_table.sum());
+    return a / b;
+}
+
+fn idf(idf_table: TermFreqIndex, term: []const u8) f32 {
+    const a: f32 = @floatFromInt(idf_table.map.capacity());
+    var count: u32 = 0;
+
+    var tfi_iter = idf_table.map.iterator();
+    while (tfi_iter.next()) |e| {
+        if (e.value_ptr.contains(term)) {
+            count += 1;
+        }
+    }
+
+    const count_float: f32 = @floatFromInt(count);
+    return std.math.log10((a / count_float));
+}
