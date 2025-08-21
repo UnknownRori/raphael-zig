@@ -42,6 +42,15 @@ pub const TermFreq = struct {
         try jw.endObject();
     }
 
+    pub fn sum(self: Self) u32 {
+        var weight: u32 = 0;
+        var tf_iter = self.map.iterator();
+        while (tf_iter.next()) |e| {
+            weight += e.value_ptr.*;
+        }
+        return weight;
+    }
+
     pub fn search(self: Self, term: []const u8) u32 {
         var weight: u32 = 0;
         var tokens = std.mem.tokenizeSequence(u8, term, " ");
@@ -119,7 +128,9 @@ pub const TermFreqIndex = struct {
             }
 
             if (!std.mem.containsAtLeast(u8, val.name, 1, ".md") or
-                std.mem.containsAtLeast(u8, val.name, 1, "excalidraw") or val.kind != .file)
+                std.mem.containsAtLeast(u8, val.name, 1, ".excalidraw") or
+                std.mem.containsAtLeast(u8, val.name, 1, ".kanban") or
+                val.kind != .file)
             {
                 continue;
             }
@@ -148,6 +159,9 @@ pub const TermFreqIndex = struct {
 
         std.debug.print("Parsing directory: {s} \n", .{directory});
         try self.index_recursive(dir);
+
+        std.debug.print("\n--------------\n", .{});
+        std.debug.print("Indexed: {d} files", .{self.map.capacity()});
     }
 
     pub fn print(self: Self) void {
@@ -174,12 +188,29 @@ pub const TermFreqIndex = struct {
         const allocator = self.arena.allocator();
 
         var result = std.ArrayList(SearchResult).init(allocator);
+        var count: u32 = 0;
 
         var tfi_iter = self.map.iterator();
         while (tfi_iter.next()) |e| {
-            const weight: u32 = e.value_ptr.*.search(term);
+            if (e.value_ptr.search(term) != 0) {
+                count += 1;
+            }
+        }
+
+        const count_float: f32 = @floatFromInt(count);
+        const total: f32 = @floatFromInt(self.map.capacity());
+
+        var tfi_iter0 = self.map.iterator();
+        while (tfi_iter0.next()) |e| {
+            const weight: f32 = @floatFromInt(e.value_ptr.*.search(term));
             if (weight == 0) continue;
-            const search_result = SearchResult.init(e.key_ptr.*, weight);
+
+            const sum: f32 = @floatFromInt(e.value_ptr.*.sum());
+            const weight_result = (weight / sum) * std.math.log10(total / count_float);
+            const search_result = SearchResult.init(
+                e.key_ptr.*,
+                weight_result,
+            );
             try result.append(search_result);
         }
 
@@ -195,11 +226,11 @@ pub const TermFreqIndex = struct {
 
 pub const SearchResult = struct {
     filepath: []const u8,
-    weight: u32,
+    weight: f32,
 
     const Self = @This();
 
-    pub fn init(filepath: []const u8, weight: u32) Self {
+    pub fn init(filepath: []const u8, weight: f32) Self {
         return Self{
             .filepath = filepath,
             .weight = weight,
@@ -212,6 +243,6 @@ pub const SearchResult = struct {
     }
 
     pub fn print(self: Self) void {
-        std.debug.print("{s} -> {d}\n", .{ self.filepath, self.weight });
+        std.debug.print("{s} -> {d}\n", .{ std.fs.path.basename(self.filepath), self.weight });
     }
 };
