@@ -253,7 +253,7 @@ pub const SearchResult = struct {
     }
 
     pub fn print(self: Self) void {
-        std.debug.print("{s} -> {d}\n", .{ std.fs.path.basename(self.filepath), self.weight });
+        std.debug.print("{s} -> %{d:.2} ({d})\n", .{ std.fs.path.basename(self.filepath), self.weight * 1000, self.weight });
     }
 };
 
@@ -264,7 +264,7 @@ fn tf(tf_table: TermFreq, term: []const u8) f32 {
 }
 
 fn idf(idf_table: TermFreqIndex, term: []const u8) f32 {
-    const a: f32 = @floatFromInt(idf_table.map.capacity());
+    const a: f32 = @floatFromInt(idf_table.map.count());
     var count: u32 = 0;
 
     var tfi_iter = idf_table.map.iterator();
