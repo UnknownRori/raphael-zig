@@ -42,3 +42,7 @@ pub fn load_index(allocator: Allocator) !TermFreqIndex {
     }
     return try TermFreqIndex.fromJson(allocator, str.items);
 }
+
+test {
+    _ = @import("./tests/all.zig");
+}
