@@ -3,7 +3,10 @@ const net = std.net;
 
 const Allocator = std.mem.Allocator;
 const String = std.ArrayList(u8);
+
 const Request = @import("./request.zig").Request;
+const Response = @import("./response.zig").Response;
+const HTTPStatus = @import("./utils.zig").HTTPStatus;
 
 pub const Server = struct {
     addr: net.Address,
@@ -28,52 +31,53 @@ pub const Server = struct {
         std.debug.print("Listening at {}\n", .{server.listen_address});
         defer server.deinit();
 
+        // TODO : MEM LEAK SOMEWHERE
         while (true) {
-            var arena = std.heap.ArenaAllocator.init(self.allocator);
-            const allocator = arena.allocator();
-            defer arena.deinit();
-
             const client = try server.accept();
-            defer client.stream.close();
 
-            var buffer = String.init(allocator);
-            defer buffer.deinit();
-            const writer = buffer.writer();
-
-            var buffered_reader = std.io.bufferedReader(client.stream.reader());
-            var reader = buffered_reader.reader();
-
-            var buf: [1024]u8 = undefined;
-            while (true) {
-                const line = reader.readUntilDelimiter(&buf, '\n') catch {
-                    break;
-                };
-                const trimmed = std.mem.trimRight(u8, line, "\r");
-
-                if (trimmed.len == 0) break;
-
-                _ = try writer.write(trimmed);
-                _ = try writer.write("\r\n");
-            }
-            std.debug.print("{s}\n", .{buffer.items});
-
-            var request = try Request.parseHeader(allocator, buffer.items);
-            defer request.deinit();
-            try request.parseBody(reader);
-
-            std.debug.print("{s}\n", .{request.body});
-
-            // TODO: Overhaul this
-            const fd = try std.fs.cwd().readFile("./src-web/index.html", &buf);
-            var buf2: [1024]u8 = undefined;
-            const fd_len = try std.fmt.bufPrint(&buf2, "{d}", .{fd.len});
-
-            _ = try client.stream.write("HTTP/1.1 200 OK\r\n");
-            _ = try client.stream.write("Content-Type: text/html\r\n");
-            _ = try client.stream.write("Content-Length: ");
-            _ = try client.stream.write(fd_len);
-            _ = try client.stream.write("\r\n\r\n");
-            _ = try client.stream.writeAll(fd);
+            // Just yeet the thread and we don't care about it
+            // when we care we put it on thread pool to reuse the thread
+            const thd = try std.Thread.spawn(.{ .allocator = self.allocator }, handle, .{ self.allocator, client });
+            thd.detach();
         }
     }
 };
+
+fn handle(parent_allocator: Allocator, client: net.Server.Connection) !void {
+    defer client.stream.close();
+
+    var arena = std.heap.ArenaAllocator.init(parent_allocator);
+    const allocator = arena.allocator();
+    defer arena.deinit();
+
+    var buffer = String.init(allocator);
+    defer buffer.deinit();
+    const writer = buffer.writer();
+
+    var buffered_reader = std.io.bufferedReader(client.stream.reader());
+    var reader = buffered_reader.reader();
+
+    var buf: [1024]u8 = undefined;
+    while (true) {
+        const line = reader.readUntilDelimiter(&buf, '\n') catch {
+            break;
+        };
+        const trimmed = std.mem.trimRight(u8, line, "\r");
+
+        if (trimmed.len == 0) break;
+
+        _ = try writer.write(trimmed);
+        _ = try writer.write("\r\n");
+    }
+
+    var request = try Request.parseHeader(allocator, buffer.items);
+    defer request.deinit();
+    try request.parseBody(reader);
+
+    std.debug.print("[{s}] {} - {s}\n", .{ request.method.to_string(), client.address, request.path });
+
+    var response = Response.init(allocator);
+    defer response.deinit();
+    try response.json(.Ok, .{ .message = "Hello, World" });
+    try response.send(client.stream);
+}
