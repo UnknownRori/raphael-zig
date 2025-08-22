@@ -45,16 +45,29 @@ pub const Server = struct {
             // TODO : Parse response body
             var buf: [1024]u8 = undefined;
             while (true) {
-                const line = try reader.readUntilDelimiter(&buf, '\n');
+                const line = reader.readUntilDelimiter(&buf, '\n') catch {
+                    break;
+                };
                 const trimmed = std.mem.trimRight(u8, line, "\r");
 
                 if (trimmed.len == 0) break;
 
                 _ = try writer.write(trimmed);
-                std.debug.print("{s}\n", .{trimmed});
+                _ = try writer.write("\r\n");
             }
-            _ = try client.stream.writeAll("HTTP/1.1 200 OK\r\n");
-            std.debug.print("{s}\n", .{buf});
+            std.debug.print("{s}\n", .{buffer.items});
+
+            // TODO: Overhaul this
+            const fd = try std.fs.cwd().readFile("./src-web/index.html", &buf);
+            var buf2: [1024]u8 = undefined;
+            const fd_len = try std.fmt.bufPrint(&buf2, "{d}", .{fd.len});
+
+            _ = try client.stream.write("HTTP/1.1 200 OK\r\n");
+            _ = try client.stream.write("Content-Type: text/html\r\n");
+            _ = try client.stream.write("Content-Length: ");
+            _ = try client.stream.write(fd_len);
+            _ = try client.stream.write("\r\n\r\n");
+            _ = try client.stream.writeAll(fd);
         }
     }
 };
