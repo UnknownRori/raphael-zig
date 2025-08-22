@@ -17,7 +17,7 @@ pub const Request = struct {
 
     const Self = @This();
 
-    pub fn fromBuffer(parent_allocator: Allocator, buffer: []const u8) !Self {
+    pub fn parseHeader(parent_allocator: Allocator, buffer: []const u8) !Self {
         var arena = ArenaAllocator.init(parent_allocator);
         const allocator = arena.allocator();
         var split = std.mem.splitSequence(u8, buffer, "\r\n\r\n");
@@ -61,14 +61,28 @@ pub const Request = struct {
             }
         }
 
-        const body = split.next().?;
         return Self{
             .method = method,
             .path = path,
-            .body = body,
+            .body = "",
             .headers = headers,
             .allocator = arena,
         };
+    }
+
+    pub fn parseBody(self: *Self, reader: anytype) !void {
+        const length_option = self.headers.get("Content-Length");
+        var length: i32 = 0;
+        if (length_option != null) length = try std.fmt.parseInt(u8, length_option.?, 10);
+
+        var str = std.ArrayList(u8).init(self.allocator.allocator());
+        while (length > 0) {
+            length -= 1;
+
+            const byte = try reader.readByte();
+            try str.append(byte);
+        }
+        self.body = str.items;
     }
 
     pub fn deinit(self: Self) void {

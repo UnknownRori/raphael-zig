@@ -3,6 +3,7 @@ const net = std.net;
 
 const Allocator = std.mem.Allocator;
 const String = std.ArrayList(u8);
+const Request = @import("./request.zig").Request;
 
 pub const Server = struct {
     addr: net.Address,
@@ -42,7 +43,6 @@ pub const Server = struct {
             var buffered_reader = std.io.bufferedReader(client.stream.reader());
             var reader = buffered_reader.reader();
 
-            // TODO : Parse response body
             var buf: [1024]u8 = undefined;
             while (true) {
                 const line = reader.readUntilDelimiter(&buf, '\n') catch {
@@ -56,6 +56,12 @@ pub const Server = struct {
                 _ = try writer.write("\r\n");
             }
             std.debug.print("{s}\n", .{buffer.items});
+
+            var request = try Request.parseHeader(allocator, buffer.items);
+            defer request.deinit();
+            try request.parseBody(reader);
+
+            std.debug.print("{s}\n", .{request.body});
 
             // TODO: Overhaul this
             const fd = try std.fs.cwd().readFile("./src-web/index.html", &buf);
