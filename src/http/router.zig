@@ -45,7 +45,7 @@ pub const Router = struct {
         try self.add(path, .DELETE, ctx, handler);
     }
 
-    pub fn resolve(self: *Self, request: *Request) ?Handler {
+    pub fn resolve(self: Self, request: *Request) ?Handler {
         for (self.routes.items) |route| {
             const valid = route.resolve(request);
             if (valid) return route.handler;

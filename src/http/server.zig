@@ -6,15 +6,17 @@ const String = std.ArrayList(u8);
 
 const Request = @import("./request.zig").Request;
 const Response = @import("./response.zig").Response;
+const Router = @import("./router.zig").Router;
 const HTTPStatus = @import("./utils.zig").HTTPStatus;
 
 pub const Server = struct {
     addr: net.Address,
     allocator: Allocator,
+    router: Router,
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator, host: []const u8, port: u16) !Self {
+    pub fn init(allocator: Allocator, host: []const u8, port: u16, router: Router) !Self {
         const addr = try std.net.Ip4Address.parse(host, port);
         const socket = std.net.Address{
             .in = addr,
@@ -22,8 +24,13 @@ pub const Server = struct {
 
         return Self{
             .addr = socket,
+            .router = router,
             .allocator = allocator,
         };
+    }
+
+    pub fn deinit(self: Self) void {
+        self.router.deinit();
     }
 
     pub fn listen(self: *Self) !void {
@@ -37,13 +44,13 @@ pub const Server = struct {
 
             // Just yeet the thread and we don't care about it
             // when we care we put it on thread pool to reuse the thread
-            const thd = try std.Thread.spawn(.{ .allocator = self.allocator }, handle, .{ self.allocator, client });
+            const thd = try std.Thread.spawn(.{ .allocator = self.allocator }, handle, .{ self.allocator, self.router, client });
             thd.detach();
         }
     }
 };
 
-fn handle(parent_allocator: Allocator, client: net.Server.Connection) !void {
+fn handle(parent_allocator: Allocator, router: Router, client: net.Server.Connection) !void {
     defer client.stream.close();
 
     var arena = std.heap.ArenaAllocator.init(parent_allocator);
@@ -78,6 +85,15 @@ fn handle(parent_allocator: Allocator, client: net.Server.Connection) !void {
 
     var response = Response.init(allocator);
     defer response.deinit();
-    try response.json(.Ok, .{ .message = "Hello, World" });
+
+    const handler = router.resolve(&request);
+    if (handler == null) {
+        try response.response(.NotFound, .HTML, PageNotFoundHTML);
+    } else {
+        try handler.?.call(&request, &response);
+    }
+
     try response.send(client.stream);
 }
+
+const PageNotFoundHTML = @embedFile("./default_404.html");

@@ -55,9 +55,31 @@ pub fn main() !void {
     if (std.mem.eql(u8, "serve", command)) {
         var tfi = try lib.load_index(allocator);
         defer tfi.deinit();
-        var server = try lib.Http.Server.init(allocator, "127.0.0.1", 6969);
-        try server.listen();
 
-        // @panic("TODO: Not Implemented Yet");
+        var router = lib.Http.Router.init(allocator);
+
+        var raphael_controller = RaphaelController.init();
+
+        try router.get("/", &raphael_controller, RaphaelController.home);
+
+        var server = try lib.Http.Server.init(allocator, "127.0.0.1", 6969, router);
+        try server.listen();
     }
 }
+
+const Request = lib.Http.Request;
+const Response = lib.Http.Response;
+
+const RaphaelController = struct {
+    const Self = @This();
+
+    pub fn init() Self {
+        return Self{};
+    }
+
+    pub fn home(ctx: *anyopaque, req: *Request, res: *Response) !void {
+        _ = req;
+        _ = ctx;
+        try res.file(.Ok, .HTML, "./src-web/index.html");
+    }
+};
