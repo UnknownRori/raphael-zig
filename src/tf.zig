@@ -26,7 +26,7 @@ pub const TermFreq = struct {
             const token = try std.ascii.allocUpperString(allocator, item);
             if (tf_map.contains(token)) {
                 const entry = tf_map.getEntry(token).?;
-                entry.value_ptr.* = @as(u32, 1);
+                entry.value_ptr.* += @as(u32, 1);
                 continue;
             }
             _ = try tf_map.getOrPutValue(token, 1);
@@ -78,8 +78,9 @@ pub const TermFreq = struct {
     }
 
     pub fn contains(self: Self, token: []const u8) bool {
-        if (self.map.get(token) != null) return true;
-        return false;
+        const value = self.map.get(token);
+        if (value == null) return false;
+        return true;
     }
 
     pub fn deinit(self: *Self) void {
@@ -207,13 +208,19 @@ pub const TermFreqIndex = struct {
         var result = std.ArrayList(SearchResult).init(allocator);
 
         var tfi_iter = self.map.iterator();
+        const term_uppercase = try std.ascii.allocUpperString(allocator, term);
+        defer allocator.free(term_uppercase);
         while (tfi_iter.next()) |e| {
-            var lexer = Lexer.init(term);
+            var lexer = Lexer.init(term_uppercase);
             var rank: f32 = 0;
 
             while (lexer.next()) |token| {
                 rank += tf(e.value_ptr.*, token) * idf(self.*, token);
             }
+
+            // We don't give a frick with infinite rank like ur mom
+            if (std.math.isInf(rank) or std.math.isNan(rank) or rank <= 0) continue;
+
             try result.append(SearchResult.init(e.key_ptr.*, rank));
         }
 
@@ -251,7 +258,7 @@ pub const SearchResult = struct {
 };
 
 fn tf(tf_table: TermFreq, term: []const u8) f32 {
-    const a: f32 = @floatFromInt(tf_table.getOr(term, 1));
+    const a: f32 = @floatFromInt(tf_table.getOr(term, 0));
     const b: f32 = @floatFromInt(tf_table.sum());
     return a / b;
 }
