@@ -2,7 +2,8 @@ const std = @import("std");
 const testing = std.testing;
 
 const Lexer = @import("./lexer.zig").Lexer;
-const end_line = @import("./utils.zig").end_line;
+const end_line = @import("./utils/utils.zig").end_line;
+const read_file = @import("./utils/utils.zig").fs.read_file;
 
 const Allocator = std.mem.Allocator;
 
@@ -155,8 +156,7 @@ pub const TermFreqIndex = struct {
             }
 
             std.debug.print("Reading: {s}\n", .{val.name});
-            const stat = try dir.statFile(val.name);
-            const file = try dir.readFileAlloc(allocator, val.name, stat.size);
+            const file = read_file(allocator, dir, val.name);
 
             const tf_map = TermFreq.parse(allocator, file) catch |err| {
                 if (err == std.mem.Allocator.Error.OutOfMemory) {
