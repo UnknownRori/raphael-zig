@@ -1,4 +1,4 @@
-const fs = @import("./fs.zig");
+pub const fs = @import("./fs.zig");
 
 pub fn end_line() []const u8 {
     const os = @import("builtin").os;

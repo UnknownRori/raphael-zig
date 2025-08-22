@@ -156,7 +156,7 @@ pub const TermFreqIndex = struct {
             }
 
             std.debug.print("Reading: {s}\n", .{val.name});
-            const file = read_file(allocator, dir, val.name);
+            const file = try read_file(allocator, dir, val.name);
 
             const tf_map = TermFreq.parse(allocator, file) catch |err| {
                 if (err == std.mem.Allocator.Error.OutOfMemory) {
