@@ -1,10 +1,14 @@
+const std = @import("std");
+
+pub const Headers = std.StringHashMap([]const u8);
+
 pub const HTTPMethod = enum {
     GET,
     POST,
     DELETE,
     PATCH,
 
-    pub fn toString(self: HTTPMethod) []const u8 {
+    pub fn to_string(self: HTTPMethod) []const u8 {
         return switch (self) {
             HTTPMethod.GET => "GET",
             HTTPMethod.POST => "POST",
@@ -32,7 +36,7 @@ pub const HTTPStatus = enum(u16) {
     InternalServerError = 500,
     ServiceUnAvailable = 503,
 
-    pub fn toString(self: HTTPStatus) []const u8 {
+    pub fn to_string(self: HTTPStatus) []const u8 {
         return switch (self) {
             HTTPStatus.Ok => "Ok",
             HTTPStatus.Created => "Created",
@@ -51,4 +55,33 @@ pub const HTTPStatus = enum(u16) {
             HTTPStatus.ServiceUnAvailable => "Service Unavailable",
         };
     }
+};
+
+pub const ContentType = enum(u8) {
+    HTML,
+    JAVASCRIPT,
+    CSS,
+    JSON,
+    BLOB,
+
+    pub fn to_string(self: ContentType) []const u8 {
+        return switch (self) {
+            ContentType.HTML => "text/html",
+            ContentType.JAVASCRIPT => "text/javascript",
+            ContentType.CSS => "text/css",
+            ContentType.JSON => "application/json",
+            ContentType.BLOB => "application/octet-stream",
+        };
+    }
+};
+
+pub const MIME_TYPE: []MimeType = [_]MimeType{
+    .{ .extension = ".html", .name = .HTMl },
+    .{ .extension = ".js", .name = .JAVASCRIPT },
+    .{ .extension = ".css", .name = .CSS },
+};
+
+pub const MimeType = struct {
+    extension: []const u8,
+    content_Type: ContentType,
 };

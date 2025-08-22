@@ -5,13 +5,11 @@ const Request = @import("../../http/http.zig").Request;
 const HTTPMethod = @import("../../http/http.zig").Method;
 
 test "Parse basic request data correctly" {
-    var gpa = std.heap.DebugAllocator(.{}).init;
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    const allocator = testing.allocator;
 
     const data = "GET / HTTP/1.1\r\nUser-Agent: Dummy\r\nAccept: text/html\r\n\r\n";
 
-    const request = try Request.fromBuffer(allocator, data);
+    const request = try Request.parseHeader(allocator, data);
     defer request.deinit();
 
     try testing.expectEqual(HTTPMethod.GET, request.method);
@@ -23,14 +21,17 @@ test "Parse basic request data correctly" {
 }
 
 test "Parse basic request data with plain text body correctly" {
-    var gpa = std.heap.DebugAllocator(.{}).init;
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+    const allocator = testing.allocator;
 
     const data = "GET / HTTP/1.1\r\nUser-Agent: Dummy\r\nContent-Type: text/plain\r\nContent-Length: 3\r\nAccept: text/html\r\n\r\nHi!";
+    var split = std.mem.splitSequence(u8, data, "\r\n\r\n");
 
-    const request = try Request.fromBuffer(allocator, data);
+    var request = try Request.parseHeader(allocator, split.next().?);
     defer request.deinit();
+
+    var stream = std.io.fixedBufferStream(split.next().?);
+    const reader = stream.reader();
+    try request.parseBody(reader);
 
     try testing.expectEqual(HTTPMethod.GET, request.method);
     try testing.expectEqual(4, request.headers.count());

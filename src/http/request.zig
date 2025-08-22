@@ -5,8 +5,7 @@ const ArenaAllocator = std.heap.ArenaAllocator;
 const String = std.ArrayList(u8);
 
 const HTTPMethod = @import("./utils.zig").HTTPMethod;
-
-pub const Headers = std.StringHashMap([]const u8);
+const Headers = @import("./utils.zig").Headers;
 
 pub const Request = struct {
     method: HTTPMethod,
