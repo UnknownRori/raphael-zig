@@ -61,7 +61,7 @@ test "Resolve route with correct path and method" {
     var response = Response.init(allocator);
     defer response.deinit();
 
-    const handler = router.resolve(&request).?;
+    const handler = (try router.resolve(&request)).?;
     try handler.call(&request, &response);
 
     try testing.expectEqualStrings(my_hello.hello, "/hi");
@@ -85,7 +85,7 @@ test "Should not resolve route with wrong path" {
     var response = Response.init(allocator);
     defer response.deinit();
 
-    const handler = router.resolve(&request);
+    const handler = try router.resolve(&request);
     try testing.expect(handler == null);
 }
 
@@ -107,6 +107,6 @@ test "Should not resolve route with wrong method" {
     var response = Response.init(allocator);
     defer response.deinit();
 
-    const handler = router.resolve(&request);
+    const handler = try router.resolve(&request);
     try testing.expect(handler == null);
 }

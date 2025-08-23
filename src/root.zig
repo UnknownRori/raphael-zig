@@ -4,6 +4,8 @@ pub const Lexer = @import("./lexer.zig").Lexer;
 pub const TermFreq = @import("./tf.zig").TermFreq;
 pub const TermFreqIndex = @import("./tf.zig").TermFreqIndex;
 
+pub const utils = @import("./utils/utils.zig");
+
 pub const Http = @import("./http/http.zig");
 
 const Allocator = std.mem.Allocator;

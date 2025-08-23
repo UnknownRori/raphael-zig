@@ -8,3 +8,5 @@ pub const Router = @import("./router.zig").Router;
 
 pub const Method = @import("./utils.zig").HTTPMethod;
 pub const Status = @import("./utils.zig").HTTPStatus;
+
+pub const utils = @import("./utils.zig");

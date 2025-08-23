@@ -1,6 +1,7 @@
 const std = @import("std");
 
-pub const Headers = std.StringHashMap([]const u8);
+pub const Headers = std.StringArrayHashMap([]const u8);
+pub const Params = std.StringArrayHashMap([]const u8);
 
 pub const HTTPMethod = enum {
     GET,
@@ -75,13 +76,23 @@ pub const ContentType = enum(u8) {
     }
 };
 
-pub const MIME_TYPE: []MimeType = [_]MimeType{
-    .{ .extension = ".html", .name = .HTMl },
-    .{ .extension = ".js", .name = .JAVASCRIPT },
-    .{ .extension = ".css", .name = .CSS },
+pub const MIME_TYPE = [_]MimeType{
+    .{ .extension = ".html", .content_type = .HTML },
+    .{ .extension = ".js", .content_type = .JAVASCRIPT },
+    .{ .extension = ".css", .content_type = .CSS },
 };
+
+pub fn match_mime_type(other: []const u8) MimeType {
+    for (MIME_TYPE) |mime| {
+        if (std.mem.eql(u8, mime.extension, other)) return mime;
+    }
+    return MimeType{
+        .extension = other,
+        .content_type = .BLOB,
+    };
+}
 
 pub const MimeType = struct {
     extension: []const u8,
-    content_Type: ContentType,
+    content_type: ContentType,
 };

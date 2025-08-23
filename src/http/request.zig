@@ -6,12 +6,14 @@ const String = std.ArrayList(u8);
 
 const HTTPMethod = @import("./utils.zig").HTTPMethod;
 const Headers = @import("./utils.zig").Headers;
+const Params = @import("./utils.zig").Params;
 
 pub const Request = struct {
     method: HTTPMethod,
     path: []const u8,
     body: []const u8,
     headers: Headers,
+    params: Params,
     allocator: ArenaAllocator,
 
     const Self = @This();
@@ -21,11 +23,13 @@ pub const Request = struct {
         const allocator = arena.allocator();
         var split = std.mem.splitSequence(u8, buffer, "\r\n\r\n");
 
+        // TODO : There is something wrong here
         const header = split.next().?;
         var headerToken = std.mem.splitSequence(u8, header, "\r\n");
         var method: HTTPMethod = .GET;
         var path: []const u8 = "";
         var headers = Headers.init(allocator);
+        const params = Params.init(allocator);
 
         // TODO : Refactor this
         while (headerToken.next()) |line| {
@@ -65,6 +69,7 @@ pub const Request = struct {
             .path = path,
             .body = "",
             .headers = headers,
+            .params = params,
             .allocator = arena,
         };
     }

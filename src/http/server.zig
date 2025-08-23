@@ -86,7 +86,7 @@ fn handle(parent_allocator: Allocator, router: Router, client: net.Server.Connec
     var response = Response.init(allocator);
     defer response.deinit();
 
-    const handler = router.resolve(&request);
+    const handler = try router.resolve(&request);
     if (handler == null) {
         try response.response(.NotFound, .HTML, PageNotFoundHTML);
     } else {

@@ -35,7 +35,7 @@ test "Resolve route with correct path and method" {
     var request = try Request.parseHeader(allocator, data);
     defer request.deinit();
 
-    try testing.expect(route.resolve(&request));
+    try testing.expect(try route.resolve(&request));
 }
 
 test "Should not resolve route with wrong path" {
@@ -48,7 +48,7 @@ test "Should not resolve route with wrong path" {
     var request = try Request.parseHeader(allocator, data);
     defer request.deinit();
 
-    try testing.expect(!route.resolve(&request));
+    try testing.expect(!(try route.resolve(&request)));
 }
 
 test "Should not resolve route with wrong method" {
@@ -61,5 +61,31 @@ test "Should not resolve route with wrong method" {
     var request = try Request.parseHeader(allocator, data);
     defer request.deinit();
 
-    try testing.expect(!route.resolve(&request));
+    try testing.expect(!(try route.resolve(&request)));
+}
+
+test "Should resolve route that *" {
+    const allocator = testing.allocator;
+
+    var my_hello = hello.init();
+    const route = Route.init("/statics/*", .GET, &my_hello, hello.execute);
+
+    const data = "GET /statics/nyan HTTP/1.1\r\nUser-Agent: Dummy\r\nAccept: text/html\r\n\r\n";
+    var request = try Request.parseHeader(allocator, data);
+
+    try testing.expect(try route.resolve(&request));
+}
+
+test "Should resolve route that dynamic {nyan}" {
+    const allocator = testing.allocator;
+
+    var my_hello = hello.init();
+    const route = Route.init("/statics/{nyan}", .GET, &my_hello, hello.execute);
+
+    const data = "GET /statics/cat HTTP/1.1\r\nUser-Agent: Dummy\r\nAccept: text/html\r\n\r\n";
+    var request = try Request.parseHeader(allocator, data);
+
+    try testing.expect(try route.resolve(&request));
+    try testing.expect(request.params.contains("nyan"));
+    try testing.expectEqualStrings("cat", request.params.get("nyan").?);
 }

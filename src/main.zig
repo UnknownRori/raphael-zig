@@ -62,14 +62,17 @@ pub fn main() !void {
 
         try router.get("/", &raphael_controller, RaphaelController.home);
         try router.post("/query", &raphael_controller, RaphaelController.query);
+        try router.get("/*", &raphael_controller, RaphaelController.assets);
 
         var server = try lib.Http.Server.init(allocator, "127.0.0.1", 6969, router);
         try server.listen();
     }
 }
 
+const Http = lib.Http;
 const Request = lib.Http.Request;
 const Response = lib.Http.Response;
+const read_file = lib.utils.fs.read_file;
 
 const RaphaelController = struct {
     tfi: lib.TermFreqIndex,
@@ -83,6 +86,20 @@ const RaphaelController = struct {
 
     pub fn deinit(self: Self) void {
         self.tfi.deinit();
+    }
+
+    pub fn assets(ctx: *anyopaque, req: *Request, res: *Response) !void {
+        _ = ctx;
+        // TODO : Create abstraction for this thing
+        const dir = try std.fs.cwd().openDir("./src-web/", .{ .iterate = true });
+        const contents = read_file(res.arena.allocator(), dir, req.path[1..]) catch |err| {
+            std.debug.print("{any}\n", .{err});
+            return try res.json(.NotFound, .{ .message = "File not found" });
+        };
+        const extension = std.fs.path.extension(req.path);
+        const mime = Http.utils.match_mime_type(extension);
+
+        try res.response(.Ok, mime.content_type, contents);
     }
 
     pub fn home(ctx: *anyopaque, req: *Request, res: *Response) !void {

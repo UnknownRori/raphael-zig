@@ -23,9 +23,27 @@ pub const Route = struct {
         };
     }
 
-    pub fn resolve(self: Self, request: *Request) bool {
-        // TODO: Resolve params dynamically
-        if (std.mem.eql(u8, self.path, request.path) and self.method == request.method) return true;
-        return false;
+    pub fn resolve(self: Self, request: *Request) !bool {
+        if (request.method != self.method) return false;
+
+        var url = std.mem.splitSequence(u8, request.path, "/");
+        var route_url = std.mem.splitSequence(u8, self.path, "/");
+
+        while (url.next()) |request_url| {
+            const route_option = route_url.next();
+            if (route_option == null) return false;
+            const route = route_option.?;
+
+            if (std.mem.eql(u8, "*", route)) return true;
+            if (route.len > 1) {
+                if (route[0] == '{' and route[route.len - 1] == '}') {
+                    // TODO : There is something wrong with this causing segfault
+                    const name = route[1 .. route.len - 2];
+                    _ = try request.params.getOrPutValue(name, request_url);
+                }
+            }
+            if (!std.mem.eql(u8, route, request_url)) return false;
+        }
+        return true;
     }
 };
