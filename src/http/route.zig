@@ -29,6 +29,7 @@ pub const Route = struct {
         var url = std.mem.splitSequence(u8, request.path, "/");
         var route_url = std.mem.splitSequence(u8, self.path, "/");
 
+        var is_found_param = false;
         while (url.next()) |request_url| {
             const route_option = route_url.next();
             if (route_option == null) return false;
@@ -37,12 +38,14 @@ pub const Route = struct {
             if (std.mem.eql(u8, "*", route)) return true;
             if (route.len > 1) {
                 if (route[0] == '{' and route[route.len - 1] == '}') {
-                    // TODO : There is something wrong with this causing segfault
-                    const name = route[1 .. route.len - 2];
-                    _ = try request.params.getOrPutValue(name, request_url);
+                    const name = route[1 .. route.len - 1];
+                    try request.params.put(name, request_url);
+                    is_found_param = true;
                 }
             }
-            if (!std.mem.eql(u8, route, request_url)) return false;
+            if (!std.mem.eql(u8, route, request_url) and !is_found_param) {
+                return false;
+            }
         }
         return true;
     }

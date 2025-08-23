@@ -1,7 +1,6 @@
 const std = @import("std");
 
 const Allocator = std.mem.Allocator;
-const ArenaAllocator = std.heap.ArenaAllocator;
 const String = std.ArrayList(u8);
 
 const HTTPMethod = @import("./utils.zig").HTTPMethod;
@@ -11,16 +10,14 @@ const Params = @import("./utils.zig").Params;
 pub const Request = struct {
     method: HTTPMethod,
     path: []const u8,
-    body: []const u8,
+    body: ?std.ArrayList(u8),
     headers: Headers,
     params: Params,
-    allocator: ArenaAllocator,
+    allocator: Allocator,
 
     const Self = @This();
 
-    pub fn parseHeader(parent_allocator: Allocator, buffer: []const u8) !Self {
-        var arena = ArenaAllocator.init(parent_allocator);
-        const allocator = arena.allocator();
+    pub fn parseHeader(allocator: Allocator, buffer: []const u8) !Self {
         var split = std.mem.splitSequence(u8, buffer, "\r\n\r\n");
 
         // TODO : There is something wrong here
@@ -67,10 +64,10 @@ pub const Request = struct {
         return Self{
             .method = method,
             .path = path,
-            .body = "",
+            .body = null,
             .headers = headers,
             .params = params,
-            .allocator = arena,
+            .allocator = allocator,
         };
     }
 
@@ -79,17 +76,19 @@ pub const Request = struct {
         var length: i32 = 0;
         if (length_option != null) length = try std.fmt.parseInt(u8, length_option.?, 10);
 
-        var str = std.ArrayList(u8).init(self.allocator.allocator());
+        var str = std.ArrayList(u8).init(self.allocator);
         while (length > 0) {
             length -= 1;
 
             const byte = try reader.readByte();
             try str.append(byte);
         }
-        self.body = str.items;
+        self.body = str;
     }
 
-    pub fn deinit(self: Self) void {
-        self.allocator.deinit();
+    pub fn deinit(self: *Self) void {
+        self.headers.deinit();
+        self.params.deinit();
+        if (self.body != null) self.body.?.deinit();
     }
 };

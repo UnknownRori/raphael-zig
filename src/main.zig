@@ -101,8 +101,10 @@ const RaphaelController = struct {
     pub fn assets(ctx: *anyopaque, req: *Request, res: *Response) !void {
         _ = ctx;
         // TODO : Create abstraction for this thing
-        const dir = try std.fs.cwd().openDir("./src-web/", .{ .iterate = true });
-        const contents = read_file(res.arena.allocator(), dir, req.path[1..]) catch |err| {
+        const dir = try std.fs.cwd().openDir("./src-web", .{ .iterate = true });
+        const path = try std.mem.replaceOwned(u8, res.arena.allocator(), req.path[1..], "../", "");
+        std.debug.print("{s}\n", .{path});
+        const contents = read_file(res.arena.allocator(), dir, path) catch |err| {
             std.debug.print("[-] {any}\n", .{err});
             return try res.json(.NotFound, .{ .message = "File not found" });
         };
@@ -122,7 +124,7 @@ const RaphaelController = struct {
         const self: *Self = @alignCast(@ptrCast(ctx));
         const allocator = res.arena.allocator(); // Borrowing shit
 
-        var data = std.json.parseFromSlice(std.json.Value, allocator, req.body, .{}) catch |err| {
+        var data = std.json.parseFromSlice(std.json.Value, allocator, req.body.?.items, .{}) catch |err| {
             std.debug.print("{any}\n", .{err});
             return try res.json(.InternalServerError, .{
                 .status = "error",
@@ -148,7 +150,7 @@ const RaphaelController = struct {
         const self: *Self = @alignCast(@ptrCast(ctx));
         const allocator = res.arena.allocator(); // Borrowing shit
 
-        var data = std.json.parseFromSlice(std.json.Value, allocator, req.body, .{}) catch |err| {
+        var data = std.json.parseFromSlice(std.json.Value, allocator, req.body.?.items, .{}) catch |err| {
             std.debug.print("{any}\n", .{err});
             return try res.json(.InternalServerError, .{
                 .status = "error",

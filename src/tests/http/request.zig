@@ -9,7 +9,7 @@ test "Parse basic request data correctly" {
 
     const data = "GET / HTTP/1.1\r\nUser-Agent: Dummy\r\nAccept: text/html\r\n\r\n";
 
-    const request = try Request.parseHeader(allocator, data);
+    var request = try Request.parseHeader(allocator, data);
     defer request.deinit();
 
     try testing.expectEqual(HTTPMethod.GET, request.method);
@@ -17,7 +17,7 @@ test "Parse basic request data correctly" {
     try testing.expectEqualStrings("/", request.path);
     try testing.expectEqualStrings("Dummy", request.headers.get("User-Agent").?);
     try testing.expectEqualStrings("text/html", request.headers.get("Accept").?);
-    try testing.expectEqual(0, request.body.len);
+    try testing.expect(request.body == null);
 }
 
 test "Parse basic request data with plain text body correctly" {
@@ -38,5 +38,5 @@ test "Parse basic request data with plain text body correctly" {
     try testing.expectEqualStrings("/", request.path);
     try testing.expectEqualStrings("Dummy", request.headers.get("User-Agent").?);
     try testing.expectEqualStrings("text/html", request.headers.get("Accept").?);
-    try testing.expectEqual(3, request.body.len);
+    try testing.expectEqual(3, request.body.?.items.len);
 }

@@ -36,6 +36,8 @@ test "Resolve route with correct path and method" {
     defer request.deinit();
 
     try testing.expect(try route.resolve(&request));
+    try testing.expect(request.headers.contains("Accept"));
+    try testing.expect(request.headers.contains("User-Agent"));
 }
 
 test "Should not resolve route with wrong path" {
@@ -72,6 +74,7 @@ test "Should resolve route that *" {
 
     const data = "GET /statics/nyan HTTP/1.1\r\nUser-Agent: Dummy\r\nAccept: text/html\r\n\r\n";
     var request = try Request.parseHeader(allocator, data);
+    defer request.deinit();
 
     try testing.expect(try route.resolve(&request));
 }
@@ -84,6 +87,7 @@ test "Should resolve route that dynamic {nyan}" {
 
     const data = "GET /statics/cat HTTP/1.1\r\nUser-Agent: Dummy\r\nAccept: text/html\r\n\r\n";
     var request = try Request.parseHeader(allocator, data);
+    defer request.deinit();
 
     try testing.expect(try route.resolve(&request));
     try testing.expect(request.params.contains("nyan"));
