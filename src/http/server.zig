@@ -88,12 +88,13 @@ fn handle(parent_allocator: Allocator, router: Router, client: net.Server.Connec
 
     const handler = try router.resolve(&request);
     if (handler == null) {
-        try response.response(.NotFound, .HTML, PageNotFoundHTML);
+        try response.json(.NotFound, .{
+            .status = "error",
+            .message = "Not found",
+        });
     } else {
         try handler.?.call(&request, &response);
     }
 
     try response.send(client.stream);
 }
-
-const PageNotFoundHTML = @embedFile("./default_404.html");

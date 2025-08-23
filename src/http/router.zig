@@ -11,6 +11,7 @@ const Method = @import("./utils.zig").HTTPMethod;
 pub const Router = struct {
     routes: std.ArrayList(Route),
     allocator: Allocator,
+    not_found: ?Handler,
 
     const Self = @This();
 
@@ -18,6 +19,7 @@ pub const Router = struct {
         return Self{
             .routes = std.ArrayList(Route).init(allocator),
             .allocator = allocator,
+            .not_found = null,
         };
     }
 
@@ -51,6 +53,6 @@ pub const Router = struct {
             if (valid) return route.handler;
         }
 
-        return null;
+        return self.not_found;
     }
 };

@@ -60,12 +60,13 @@ pub fn main() !void {
         var raphael_controller = RaphaelController.init(tfi);
         defer raphael_controller.deinit();
 
+        router.not_found = Http.Handler.init(&raphael_controller, RaphaelController.not_found);
         try router.get("/", &raphael_controller, RaphaelController.home);
         try router.post("/query", &raphael_controller, RaphaelController.query);
         try router.post("/show", &raphael_controller, RaphaelController.show);
 
         // Statics Assets
-        try router.get("/*", &raphael_controller, RaphaelController.assets);
+        try router.get("/statics/*", &raphael_controller, RaphaelController.assets);
 
         var server = try lib.Http.Server.init(allocator, "127.0.0.1", 6969, router);
         try server.listen();
@@ -89,6 +90,12 @@ const RaphaelController = struct {
 
     pub fn deinit(self: Self) void {
         self.tfi.deinit();
+    }
+
+    pub fn not_found(ctx: *anyopaque, req: *Request, res: *Response) !void {
+        _ = req;
+        _ = ctx;
+        try res.file(.Ok, .HTML, "./src-web/404.html");
     }
 
     pub fn assets(ctx: *anyopaque, req: *Request, res: *Response) !void {
