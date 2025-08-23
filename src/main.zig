@@ -93,7 +93,7 @@ const RaphaelController = struct {
         // TODO : Create abstraction for this thing
         const dir = try std.fs.cwd().openDir("./src-web/", .{ .iterate = true });
         const contents = read_file(res.arena.allocator(), dir, req.path[1..]) catch |err| {
-            std.debug.print("{any}\n", .{err});
+            std.debug.print("[-] {any}\n", .{err});
             return try res.json(.NotFound, .{ .message = "File not found" });
         };
         const extension = std.fs.path.extension(req.path);
@@ -125,6 +125,28 @@ const RaphaelController = struct {
         const result = try self.tfi.search(query_input);
         defer result.deinit();
 
-        try res.json(.Ok, .{ .result = result.items });
+        var result_item = std.ArrayList(QueryResult).init(allocator);
+
+        var i: usize = 0;
+        for (result.items) |item| {
+            if (i > 4) break;
+            i += 1;
+
+            const data_query: QueryResult = .{
+                .name = std.fs.path.basename(item.filepath),
+                .path = item.filepath,
+                .weight = item.weight,
+            };
+
+            try result_item.append(data_query);
+        }
+
+        try res.json(.Ok, .{ .result = result_item.items });
     }
+};
+
+const QueryResult = struct {
+    name: []const u8,
+    path: []const u8,
+    weight: f32,
 };
