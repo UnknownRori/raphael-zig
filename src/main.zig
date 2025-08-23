@@ -62,6 +62,9 @@ pub fn main() !void {
 
         try router.get("/", &raphael_controller, RaphaelController.home);
         try router.post("/query", &raphael_controller, RaphaelController.query);
+        try router.post("/show", &raphael_controller, RaphaelController.show);
+
+        // Statics Assets
         try router.get("/*", &raphael_controller, RaphaelController.assets);
 
         var server = try lib.Http.Server.init(allocator, "127.0.0.1", 6969, router);
@@ -108,6 +111,32 @@ const RaphaelController = struct {
         try res.file(.Ok, .HTML, "./src-web/index.html");
     }
 
+    pub fn show(ctx: *anyopaque, req: *Request, res: *Response) !void {
+        const self: *Self = @alignCast(@ptrCast(ctx));
+        const allocator = res.arena.allocator(); // Borrowing shit
+
+        var data = std.json.parseFromSlice(std.json.Value, allocator, req.body, .{}) catch |err| {
+            std.debug.print("{any}\n", .{err});
+            return try res.json(.InternalServerError, .{
+                .status = "error",
+                .message = "Parsing json failed",
+            });
+        };
+        defer data.deinit();
+
+        const query_input = data.value.object.get("file").?.string;
+        const result = try self.tfi.search(query_input);
+        defer result.deinit();
+
+        const dir = try std.fs.cwd().openDir(std.fs.path.dirname(query_input).?, .{ .iterate = true });
+        const contents = read_file(res.arena.allocator(), dir, std.fs.path.basename(query_input)) catch |err| {
+            std.debug.print("[-] {any}\n", .{err});
+            return try res.json(.NotFound, .{ .message = "File not found" });
+        };
+
+        try res.json(.Ok, .{ .status = "success", .data = contents });
+    }
+
     pub fn query(ctx: *anyopaque, req: *Request, res: *Response) !void {
         const self: *Self = @alignCast(@ptrCast(ctx));
         const allocator = res.arena.allocator(); // Borrowing shit
@@ -141,7 +170,7 @@ const RaphaelController = struct {
             try result_item.append(data_query);
         }
 
-        try res.json(.Ok, .{ .result = result_item.items });
+        try res.json(.Ok, .{ .status = "success", .result = result_item.items });
     }
 };
 

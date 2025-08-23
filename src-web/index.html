@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Raphael</title>
 
+    <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
@@ -14,9 +15,10 @@
 </head>
 
 <body>
+    <div class="background"></div>
     <div class="container-center">
         <div class="card">
-            <h1>
+            <h1 class="text-center">
                 Raphael
             </h1>
 
@@ -24,6 +26,9 @@
                 <input type="text" name="query" id="query" placeholder="Enter your search term" class="input-form">
                 <button class="btn">Search</button>
             </form>
+        </div>
+
+        <div id="query-result">
         </div>
 
         <footer>Made with ❤️ by UnknownRori</footer>
