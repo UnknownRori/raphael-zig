@@ -5,12 +5,152 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Raphael</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --rounded: 8px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            font-family: "JetBrains Mono";
+
+        }
+
+        body {
+            background-image: url(https://github.com/UnknownRori/unknownrori.vercel.app/blob/main/public/assets/bg/cover.png?raw=true);
+            background-size: cover;
+            background-repeat: no-repeat;
+            color: white;
+
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .container-center {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .card {
+            display: flex;
+            gap: 0.4rem;
+            flex-direction: column;
+
+            border: 1px solid #4C4C4C;
+            border-radius: var(--rounded);
+
+            backdrop-filter: blur(10px);
+            padding: 1.5rem 2rem;
+        }
+
+        .card h1 {
+            text-align: center;
+        }
+
+        .input-form {
+            outline: none;
+            border: none;
+            background: rgba(25, 25, 25, 0.3);
+            padding: 0.5rem 1rem;
+            color: white;
+
+            border: 1px solid #4C4C4C;
+            border-radius: var(--rounded);
+
+            min-width: 400px;
+            transition: background 200ms ease-out, border 200ms ease-out;
+        }
+
+        .input-form:hover {
+            background: rgba(25, 25, 25, 0.6);
+
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+
+        .input-form:focus {
+            background: rgba(25, 25, 25, 0.8);
+
+            border: 1px solid white;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+
+            background: rgba(25, 25, 25, 0.5);
+            color: white;
+
+            border: 1px solid #4C4C4C;
+            border-radius: var(--rounded);
+
+            transition: background 200ms ease-out, border 200ms ease-out;
+        }
+
+        .btn:hover {
+            cursor: pointer;
+            background: rgba(55, 55, 55, 1.0);
+            border: 1px solid white;
+        }
+
+        footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            text-align: center;
+            padding: 1rem 0;
+            color: rgba(255, 255, 255, 0.5);
+
+            width: 100vw;
+        }
+    </style>
 </head>
 
 <body>
-    <h1>
-        Hello, World!
-    </h1>
+    <div class="container-center">
+        <div class="card">
+            <h1>
+                Raphael
+            </h1>
+
+            <form action="" method="post" id="query-form">
+                <input type="text" name="query" id="query" placeholder="Enter your search term" class="input-form">
+                <button class="btn">Search</button>
+            </form>
+        </div>
+
+        <footer>Made with ❤️ by UnknownRori</footer>
+    </div>
+
+    <script>
+        const input = document.querySelector("#query");
+        const form = document.querySelector("#query-form");
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const result = await fetch("http://localhost:6969/query", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                },
+                body: JSON.stringify({
+                    query: input.value,
+                }),
+            });
+            const json = await result.json();
+            console.log(json);
+        });
+    </script>
 </body>
 
 </html>

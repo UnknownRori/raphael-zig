@@ -53,14 +53,15 @@ pub fn main() !void {
     }
 
     if (std.mem.eql(u8, "serve", command)) {
-        var tfi = try lib.load_index(allocator);
-        defer tfi.deinit();
+        const tfi = try lib.load_index(allocator);
 
         var router = lib.Http.Router.init(allocator);
 
-        var raphael_controller = RaphaelController.init();
+        var raphael_controller = RaphaelController.init(tfi);
+        defer raphael_controller.deinit();
 
         try router.get("/", &raphael_controller, RaphaelController.home);
+        try router.post("/query", &raphael_controller, RaphaelController.query);
 
         var server = try lib.Http.Server.init(allocator, "127.0.0.1", 6969, router);
         try server.listen();
@@ -71,15 +72,42 @@ const Request = lib.Http.Request;
 const Response = lib.Http.Response;
 
 const RaphaelController = struct {
+    tfi: lib.TermFreqIndex,
     const Self = @This();
 
-    pub fn init() Self {
-        return Self{};
+    pub fn init(tfi: lib.TermFreqIndex) Self {
+        return Self{
+            .tfi = tfi,
+        };
+    }
+
+    pub fn deinit(self: Self) void {
+        self.tfi.deinit();
     }
 
     pub fn home(ctx: *anyopaque, req: *Request, res: *Response) !void {
         _ = req;
         _ = ctx;
         try res.file(.Ok, .HTML, "./src-web/index.html");
+    }
+
+    pub fn query(ctx: *anyopaque, req: *Request, res: *Response) !void {
+        const self: *Self = @alignCast(@ptrCast(ctx));
+        const allocator = res.arena.allocator(); // Borrowing shit
+
+        var data = std.json.parseFromSlice(std.json.Value, allocator, req.body, .{}) catch |err| {
+            std.debug.print("{any}\n", .{err});
+            return try res.json(.InternalServerError, .{
+                .status = "error",
+                .message = "Parsing json failed",
+            });
+        };
+        defer data.deinit();
+
+        const query_input = data.value.object.get("query").?.string;
+        const result = try self.tfi.search(query_input);
+        defer result.deinit();
+
+        try res.json(.Ok, .{ .result = result.items });
     }
 };

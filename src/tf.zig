@@ -229,7 +229,7 @@ pub const TermFreqIndex = struct {
         return result;
     }
 
-    pub fn deinit(self: *Self) void {
+    pub fn deinit(self: Self) void {
         self.arena.deinit();
     }
 };
