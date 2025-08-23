@@ -141,7 +141,7 @@ pub const TermFreqIndex = struct {
         while (try it.next()) |val| {
             // Skip non md file
             // TODO : Make it work with .txt too and recursively
-            if (val.kind == .directory) {
+            if (!std.mem.containsAtLeast(u8, val.name, 1, ".") and val.kind == .directory) {
                 var new_dir = try dir.openDir(val.name, .{ .iterate = true });
                 defer new_dir.close();
                 try self.index_recursive(new_dir);
