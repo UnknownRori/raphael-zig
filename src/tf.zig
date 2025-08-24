@@ -202,9 +202,7 @@ pub const TermFreqIndex = struct {
     /// Search term will return a file path to that directory and the weight it already sorted
     /// It memory managed by [`TermFreqIndex`] as long this still exist
     /// the data still valid
-    pub fn search(self: *Self, term: []const u8) !std.ArrayList(SearchResult) {
-        const allocator = self.arena.allocator();
-
+    pub fn search(self: *Self, allocator: Allocator, term: []const u8) !std.ArrayList(SearchResult) {
         var result = std.ArrayList(SearchResult).init(allocator);
 
         var tfi_iter = self.map.iterator();

@@ -10,6 +10,15 @@ pub const Http = @import("./http/http.zig");
 
 const Allocator = std.mem.Allocator;
 
+fn json_config() std.json.StringifyOptions {
+    const mode = @import("builtin").mode;
+    if (mode == .Debug) {
+        return std.json.StringifyOptions{ .whitespace = .indent_1 };
+    }
+
+    return std.json.StringifyOptions{ .whitespace = .minified };
+}
+
 pub fn cmd_index(allocator: Allocator, directory: []const u8) !void {
     var tfi = TermFreqIndex.init(allocator);
     defer tfi.deinit();
@@ -19,7 +28,7 @@ pub fn cmd_index(allocator: Allocator, directory: []const u8) !void {
     var buffer = std.ArrayList(u8).init(allocator);
     defer buffer.deinit();
 
-    var jw = std.json.writeStream(buffer.writer(), .{ .whitespace = .indent_1 });
+    var jw = std.json.writeStream(buffer.writer(), json_config());
     defer jw.deinit();
     try tfi.serializeJson(&jw);
 
