@@ -140,8 +140,8 @@ pub const TermFreqIndex = struct {
         var it = dir.iterate();
         while (try it.next()) |val| {
             // Skip non md file
-            // TODO : Make it work with .txt too and recursively
-            if (!std.mem.containsAtLeast(u8, val.name, 1, ".") and val.kind == .directory) {
+            // TODO : Make it work with .txt too, and check if it work with symlink file
+            if (!std.mem.containsAtLeast(u8, val.name, 1, ".") and (val.kind == .directory or val.kind == .sym_link)) {
                 var new_dir = try dir.openDir(val.name, .{ .iterate = true });
                 defer new_dir.close();
                 try self.index_recursive(new_dir);
@@ -179,7 +179,7 @@ pub const TermFreqIndex = struct {
         try self.index_recursive(dir);
 
         std.debug.print("\n--------------\n", .{});
-        std.debug.print("Indexed: {d} files", .{self.map.capacity()});
+        std.debug.print("Indexed: {d} files", .{self.map.count()});
     }
 
     pub fn print(self: Self) void {
