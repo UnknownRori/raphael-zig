@@ -33,7 +33,7 @@ function createQueryResultCard(title, path, description) {
                     </span>
                 </div>
                 <p>
-                    ${description}
+                    ${description}...
                 </p>
             </div>
     `;
@@ -90,7 +90,7 @@ form.addEventListener('submit', async (e) => {
     }
     for (let i = 0; i < json.result.length; i++) {
         const item = json.result[i];
-        container.innerHTML += createQueryResultCard(item.name, item.path, lorem)
+        container.innerHTML += createQueryResultCard(item.name, item.path, item.description)
     }
 });
 

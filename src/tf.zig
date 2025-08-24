@@ -7,20 +7,38 @@ const read_file = @import("./utils/utils.zig").fs.read_file;
 
 const Allocator = std.mem.Allocator;
 
+/// TODO : Refactor this for separation of concern
 pub const TermFreq = struct {
     map: std.StringHashMap(u32),
+    description: []const u8,
     allocator: Allocator,
     const Self = @This();
 
-    pub fn init(allocator: Allocator) Self {
+    pub fn init(allocator: Allocator, contents: []const u8) !Self {
+        var description = contents;
+        description = try allocator.dupe(u8, description);
+
         return Self{
             .map = std.StringHashMap(u32).init(allocator),
+            .description = description,
             .allocator = allocator,
         };
     }
 
     pub fn parse(allocator: Allocator, contents: []const u8) !Self {
         var tf_map = std.StringHashMap(u32).init(allocator);
+
+        var description = contents;
+        if (std.mem.startsWith(u8, contents, "---")) {
+            var skipHeader = std.mem.splitSequence(u8, contents, "---");
+            _ = skipHeader.next().?;
+            const header = skipHeader.next().?;
+            description = contents[header.len + 7 ..];
+        }
+
+        var max_length: usize = 200;
+        if (description.len <= max_length) max_length = description.len;
+        description = try allocator.dupe(u8, description[0..max_length]);
 
         var lexer = Lexer.init(contents);
         while (lexer.next()) |item| {
@@ -35,6 +53,7 @@ pub const TermFreq = struct {
 
         return Self{
             .map = tf_map,
+            .description = description,
             .allocator = allocator,
         };
     }
@@ -56,10 +75,18 @@ pub const TermFreq = struct {
     pub fn serializeJson(self: Self, jw: anytype) !void {
         var tf_iter = self.map.iterator();
         try jw.beginObject();
+
+        try jw.objectField("desc");
+        try jw.write(self.description);
+
+        try jw.objectField("tf");
+        try jw.beginObject();
         while (tf_iter.next()) |e| {
             try jw.objectField(e.key_ptr.*);
             try jw.write(e.value_ptr.*);
         }
+        try jw.endObject();
+
         try jw.endObject();
     }
 
@@ -86,6 +113,7 @@ pub const TermFreq = struct {
 
     pub fn deinit(self: *Self) void {
         self.map.deinit();
+        self.allocator.free(self.description);
     }
 };
 
@@ -120,8 +148,11 @@ pub const TermFreqIndex = struct {
         defer a.deinit();
 
         for (a.value.object.keys(), a.value.object.values()) |key, value| {
-            var tf_map = TermFreq.init(allocator);
-            for (value.object.keys(), value.object.values()) |key_tf, value_tf| {
+            const description = value.object.get("desc").?.string;
+            const tf_json = value.object.get("tf").?.object;
+            var tf_map = try TermFreq.init(allocator, description);
+
+            for (tf_json.keys(), tf_json.values()) |key_tf, value_tf| {
                 const term = try allocator.dupe(u8, key_tf);
 
                 try tf_map.map.put(term, @intCast(value_tf.integer));
@@ -219,7 +250,7 @@ pub const TermFreqIndex = struct {
             // We don't give a frick with infinite rank like ur mom
             if (std.math.isInf(rank) or std.math.isNan(rank) or rank <= 0) continue;
 
-            try result.append(SearchResult.init(e.key_ptr.*, rank));
+            try result.append(SearchResult.init(e.key_ptr.*, e.value_ptr.description, rank));
         }
 
         std.mem.sort(SearchResult, result.items, {}, SearchResult.compareAsc);
@@ -234,13 +265,15 @@ pub const TermFreqIndex = struct {
 
 pub const SearchResult = struct {
     filepath: []const u8,
+    description: []const u8,
     weight: f32,
 
     const Self = @This();
 
-    pub fn init(filepath: []const u8, weight: f32) Self {
+    pub fn init(filepath: []const u8, description: []const u8, weight: f32) Self {
         return Self{
             .filepath = filepath,
+            .description = description,
             .weight = weight,
         };
     }
@@ -251,7 +284,7 @@ pub const SearchResult = struct {
     }
 
     pub fn print(self: Self) void {
-        std.debug.print("{s} -> %{d:.2} ({d})\n", .{ std.fs.path.basename(self.filepath), self.weight * 1000, self.weight });
+        std.debug.print("{s} -> %{d:.2} ({d})\n", .{ self.filepath, self.weight * 1000, self.weight });
     }
 };
 

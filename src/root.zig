@@ -46,7 +46,7 @@ pub fn load_index(allocator: Allocator) !TermFreqIndex {
     var buf_reader = std.io.bufferedReader(fd.reader());
     var in_reader = buf_reader.reader();
 
-    var buf: [1024]u8 = undefined;
+    var buf: [4096]u8 = undefined;
     while (try in_reader.readUntilDelimiterOrEof(&buf, '\n')) |line| {
         try str.appendSlice(line);
         try str.append('\n');

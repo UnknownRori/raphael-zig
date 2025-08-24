@@ -87,7 +87,6 @@ pub const RaphaelController = struct {
         // TODO : Create abstraction for this thing
         const dir = try std.fs.cwd().openDir("./src-web", .{ .iterate = true });
         const path = try std.mem.replaceOwned(u8, res.arena.allocator(), req.path[1..], "../", "");
-        std.debug.print("{s}\n", .{path});
         const contents = read_file(res.arena.allocator(), dir, path) catch |err| {
             std.debug.print("[-] {any}\n", .{err});
             return try res.json(.NotFound, .{ .message = "File not found" });
@@ -156,6 +155,7 @@ pub const RaphaelController = struct {
 
             const data_query: QueryResult = .{
                 .name = std.fs.path.basename(item.filepath),
+                .description = item.description,
                 .path = item.filepath,
                 .weight = item.weight,
             };
@@ -170,5 +170,6 @@ pub const RaphaelController = struct {
 const QueryResult = struct {
     name: []const u8,
     path: []const u8,
+    description: []const u8,
     weight: f32,
 };
