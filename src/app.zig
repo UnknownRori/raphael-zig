@@ -63,16 +63,16 @@ pub fn serve(allocator: std.mem.Allocator) !void {
 }
 
 pub const RaphaelController = struct {
-    tfi: lib.TermFreqIndex,
+    tfi: lib.TermFreqDocument,
     const Self = @This();
 
-    pub fn init(tfi: lib.TermFreqIndex) Self {
+    pub fn init(tfi: lib.TermFreqDocument) Self {
         return Self{
             .tfi = tfi,
         };
     }
 
-    pub fn deinit(self: Self) void {
+    pub fn deinit(self: *Self) void {
         self.tfi.deinit();
     }
 

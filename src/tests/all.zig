@@ -4,4 +4,5 @@ test {
     _ = @import("./http/response.zig");
     _ = @import("./http/route.zig");
     _ = @import("./http/router.zig");
+    _ = @import("./tf/tf.zig");
 }

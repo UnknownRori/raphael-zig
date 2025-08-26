@@ -1,8 +1,7 @@
 const std = @import("std");
 
 pub const Lexer = @import("./lexer.zig").Lexer;
-pub const TermFreq = @import("./tf.zig").TermFreq;
-pub const TermFreqIndex = @import("./tf.zig").TermFreqIndex;
+pub const TermFreqDocument = @import("./document.zig").TermFreqDocuments;
 
 pub const utils = @import("./utils/utils.zig");
 
@@ -20,7 +19,7 @@ fn json_config() std.json.StringifyOptions {
 }
 
 pub fn cmd_index(allocator: Allocator, directory: []const u8) !void {
-    var tfi = TermFreqIndex.init(allocator);
+    var tfi = TermFreqDocument.init(allocator);
     defer tfi.deinit();
 
     try tfi.index(directory);
@@ -37,7 +36,7 @@ pub fn cmd_index(allocator: Allocator, directory: []const u8) !void {
     try index_file.writeAll(buffer.items);
 }
 
-pub fn load_index(allocator: Allocator) !TermFreqIndex {
+pub fn load_index(allocator: Allocator) !TermFreqDocument {
     var str = std.ArrayList(u8).init(allocator);
     defer str.deinit();
 
@@ -51,7 +50,7 @@ pub fn load_index(allocator: Allocator) !TermFreqIndex {
         try str.appendSlice(line);
         try str.append('\n');
     }
-    return try TermFreqIndex.fromJson(allocator, str.items);
+    return try TermFreqDocument.fromJson(allocator, str.items);
 }
 
 test {
