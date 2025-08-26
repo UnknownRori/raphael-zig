@@ -1,5 +1,7 @@
 # Raphael
 
+<img src="./docs/mascot.png" align="center" />
+
 > [!WARNING]
 > Don't expect much on this project.
 
