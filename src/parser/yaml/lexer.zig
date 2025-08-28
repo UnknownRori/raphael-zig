@@ -82,7 +82,7 @@ pub const Lexer = struct {
             const chop_alphanum = struct {
                 fn chop(ctx: anytype, char: u8) bool {
                     _ = ctx;
-                    return std.ascii.isAlphanumeric(char) or char == '-' or char == '/' or char == ',' or char == '\'' or char == '.';
+                    return std.ascii.isAlphanumeric(char) or char == '-' or char == '/' or char == ',' or char == '\'' or char == '.' or char == '!' or char == '?';
                 }
             };
 

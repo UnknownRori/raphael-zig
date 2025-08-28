@@ -107,7 +107,7 @@ form.addEventListener('submit', async (e) => {
     for (let i = 0; i < json.result.length; i++) {
         const item = json.result[i];
         const metadata = item.metadata;
-        container.innerHTML += createQueryResultCard(item.name, item.path, ["lorem", "ipsum"], metadata.description)
+        container.innerHTML += createQueryResultCard(item.name, item.path, metadata.tags, metadata.description)
     }
 });
 

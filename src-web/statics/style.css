@@ -145,6 +145,8 @@ pre {
     flex-direction: column;
     justify-content: center;
     align-items: center;
+
+    min-width: 100%;
 }
 
 .query-result {
@@ -168,7 +170,7 @@ pre {
 .query-result-card div span.tag {
     font-size: var(--text-sm);
     font-weight: bold;
-    background-color: rgba(80, 80, 80, 255);
+    background-color: rgba(50, 50, 50, 255);
     padding: 0.2rem 0.4rem;
     border-radius: var(--rounded-sm);
 }
@@ -177,11 +179,16 @@ pre {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    min-width: 60%;
 }
 
 .query-title {
     font-weight: bold;
     cursor: pointer;
+}
+
+.query-result {
+    min-width: 60%;
 }
 
 .query-result table {
