@@ -12,6 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="./statics/style.css">
+    <link rel="manifest" href="/statics/manifest.json">
 </head>
 
 <body>
@@ -34,7 +35,14 @@
         <footer>Made with ❤️ by UnknownRori</footer>
     </div>
 
-    <script src="./statics/index.js"></script>
+    <script type="module" src="./statics/js/index.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('SW registered:', reg))
+                .catch(err => console.error('SW failed', err));
+        }
+    </script>
 </body>
 
 </html>

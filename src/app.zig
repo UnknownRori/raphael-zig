@@ -48,7 +48,7 @@ pub fn serve(allocator: std.mem.Allocator) !void {
 
     var router = lib.Http.Router.init(allocator);
 
-    var raphael_controller = RaphaelController.init(tfi);
+    var raphael_controller = try RaphaelController.init(tfi);
     defer raphael_controller.deinit();
 
     router.not_found = Http.Handler.init(&raphael_controller, RaphaelController.not_found);
@@ -57,6 +57,10 @@ pub fn serve(allocator: std.mem.Allocator) !void {
     try router.post("/show", &raphael_controller, RaphaelController.show);
 
     // Statics Assets
+    try router.get("/sw.js", &raphael_controller, RaphaelController.load_sw);
+    try router.get("/favicon.ico", &raphael_controller, RaphaelController.load_favico);
+    try router.get("/index.html", &raphael_controller, RaphaelController.assets);
+    try router.get("/manifest.json", &raphael_controller, RaphaelController.assets);
     try router.get("/statics/*", &raphael_controller, RaphaelController.assets);
 
     var server = try lib.Http.Server.init(allocator, "127.0.0.1", 6969, router);
@@ -65,11 +69,15 @@ pub fn serve(allocator: std.mem.Allocator) !void {
 
 pub const RaphaelController = struct {
     tfi: lib.TermFreqDocument,
+    dir: std.fs.Dir,
     const Self = @This();
 
-    pub fn init(tfi: lib.TermFreqDocument) Self {
+    pub fn init(tfi: lib.TermFreqDocument) !Self {
+        const dir = try std.fs.cwd().openDir("./src-web", .{ .iterate = true });
+
         return Self{
             .tfi = tfi,
+            .dir = dir,
         };
     }
 
@@ -83,10 +91,37 @@ pub const RaphaelController = struct {
         try res.file(.Ok, .HTML, "./src-web/404.html");
     }
 
+    pub fn load_favico(ctx: *anyopaque, req: *Request, res: *Response) !void {
+        const self: *Self = @alignCast(@ptrCast(ctx));
+
+        const contents = read_file(res.arena.allocator(), self.dir, "statics/favicon.ico") catch |err| {
+            std.debug.print("[-] {any}\n", .{err});
+            return try res.json(.NotFound, .{ .message = "File not found" });
+        };
+        const extension = std.fs.path.extension(req.path);
+        const mime = Http.utils.match_mime_type(extension);
+
+        try res.response(.Ok, mime.content_type, contents);
+    }
+
+    pub fn load_sw(ctx: *anyopaque, req: *Request, res: *Response) !void {
+        const self: *Self = @alignCast(@ptrCast(ctx));
+
+        const contents = read_file(res.arena.allocator(), self.dir, "statics/sw.js") catch |err| {
+            std.debug.print("[-] {any}\n", .{err});
+            return try res.json(.NotFound, .{ .message = "File not found" });
+        };
+        const extension = std.fs.path.extension(req.path);
+        const mime = Http.utils.match_mime_type(extension);
+
+        try res.response(.Ok, mime.content_type, contents);
+    }
+
     pub fn assets(ctx: *anyopaque, req: *Request, res: *Response) !void {
-        _ = ctx;
         // TODO : Create abstraction for this thing
-        const dir = try std.fs.cwd().openDir("./src-web", .{ .iterate = true });
+        const self: *Self = @alignCast(@ptrCast(ctx));
+        const dir = self.dir;
+
         const path = try std.mem.replaceOwned(u8, res.arena.allocator(), req.path[1..], "../", "");
         const contents = read_file(res.arena.allocator(), dir, path) catch |err| {
             std.debug.print("[-] {any}\n", .{err});
