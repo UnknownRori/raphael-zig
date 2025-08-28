@@ -4,20 +4,19 @@ const tf = @import("tf.zig");
 const Lexer = @import("lexer.zig").Lexer;
 const Allocator = std.mem.Allocator;
 const ArenaAllocator = std.heap.ArenaAllocator;
+const Metadata = @import("metadata.zig").MetaData;
 const read_file = @import("./utils/utils.zig").fs.read_file;
 
 pub const Document = struct {
-    description: []u8,
+    metadata: Metadata,
     tf: tf.TermFreq,
     allocator: std.mem.Allocator,
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator, description: []const u8) !Self {
-        const description_alloc = try allocator.dupe(u8, description);
-
+    pub fn init(allocator: Allocator, metadata: Metadata) !Self {
         return Self{
-            .description = description_alloc,
+            .metadata = metadata,
             .tf = try tf.TermFreq.init(allocator),
             .allocator = allocator,
         };
@@ -35,21 +34,37 @@ pub const Document = struct {
 
         var max_length: usize = 200;
         if (description.len <= max_length) max_length = description.len;
-        description = try allocator.dupe(u8, description[0..max_length]);
 
         const tf_map = try tf.TermFreq.parse(allocator, contents);
 
+        var metadata = Metadata.init(allocator);
+        try metadata.description.appendSlice(description[0..max_length]);
+
         return Self{
-            .description = @constCast(description),
+            .metadata = metadata,
             .tf = tf_map,
             .allocator = allocator,
         };
     }
 
+    pub fn deserializeJson(allocator: Allocator, object: std.json.ObjectMap) !Self {
+        const metadata = try Metadata.deserializeJson(allocator, object.get("metadata").?.object);
+        var self = try Self.init(allocator, metadata);
+
+        const tf_json = object.get("tf").?.object;
+        for (tf_json.keys(), tf_json.values()) |key_tf, value_tf| {
+            const term = try allocator.dupe(u8, key_tf);
+
+            try self.tf.map.put(term, @intCast(value_tf.integer));
+        }
+
+        return self;
+    }
+
     pub fn serializeJson(self: Self, jw: anytype) !void {
         try jw.beginObject();
-        try jw.objectField("desc");
-        try jw.write(self.description);
+        try jw.objectField("metadata");
+        try self.metadata.serializeJson(jw);
 
         try jw.objectField("tf");
         try self.tf.serializeJson(jw);
@@ -61,7 +76,7 @@ pub const Document = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        self.allocator.free(self.description);
+        self.metadata.deinit();
         self.tf.deinit();
     }
 };
@@ -87,16 +102,7 @@ pub const TermFreqDocuments = struct {
         defer a.deinit();
 
         for (a.value.object.keys(), a.value.object.values()) |key, value| {
-            const description = value.object.get("desc").?.string;
-            const tf_json = value.object.get("tf").?.object;
-            var tf_map = try Document.init(allocator, description);
-
-            for (tf_json.keys(), tf_json.values()) |key_tf, value_tf| {
-                const term = try allocator.dupe(u8, key_tf);
-
-                try tf_map.tf.map.put(term, @intCast(value_tf.integer));
-            }
-
+            const tf_map = try Document.deserializeJson(allocator, value.object);
             const name = try allocator.dupe(u8, key);
             try tfi.map.put(name, tf_map);
         }
@@ -166,7 +172,7 @@ pub const TermFreqDocuments = struct {
             // We don't give a frick with infinite rank like ur mom
             if (std.math.isInf(rank) or std.math.isNan(rank) or rank <= 0) continue;
 
-            try result.append(SearchResult.init(e.key_ptr.*, e.value_ptr.description, rank));
+            try result.append(SearchResult.init(e.key_ptr.*, e.value_ptr.metadata.description.items, rank));
         }
 
         std.mem.sort(SearchResult, result.items, {}, SearchResult.compareAsc);
