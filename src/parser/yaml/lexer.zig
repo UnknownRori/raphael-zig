@@ -28,7 +28,7 @@ pub const Lexer = struct {
     }
 
     fn skip_endline(self: *Self) bool {
-        if (std.mem.eql(u8, self.contents[0..1], "\r\n")) {
+        if (self.contents[0] == '\r' and self.contents[1] == '\n') {
             _ = self.chop(2);
             return true;
         } else if (self.contents[0] == '\n') {
@@ -82,7 +82,7 @@ pub const Lexer = struct {
             const chop_alphanum = struct {
                 fn chop(ctx: anytype, char: u8) bool {
                     _ = ctx;
-                    return std.ascii.isAlphanumeric(char);
+                    return std.ascii.isAlphanumeric(char) or char == '-' or char == '/' or char == ',' or char == '\'' or char == '.';
                 }
             };
 
@@ -152,6 +152,36 @@ test "Lexer correctly sequence" {
     const testing = std.testing;
 
     const data = "lorem:\n  - Haruka\n  - Hanamaru";
+    const expected_array: []const Token = &.{
+        Token{ .Value = "lorem" },
+        TokenType.Colon,
+        TokenType.EndLine,
+        Token{ .Indent = 2 },
+        TokenType.Dash,
+        Token{ .Indent = 1 },
+        Token{ .Value = "Haruka" },
+        TokenType.EndLine,
+        Token{ .Indent = 2 },
+        TokenType.Dash,
+        Token{ .Indent = 1 },
+        Token{ .Value = "Hanamaru" },
+    };
+
+    var lexer = Lexer.init(data);
+    var i: usize = 0;
+    while (lexer.next()) |token| {
+        const expected = expected_array[i];
+        try testing.expect(std.meta.activeTag(expected) == std.meta.activeTag(token));
+        i += 1;
+    }
+
+    try testing.expectEqual(expected_array.len, i);
+}
+
+test "Lexer correctly sequence with windows endline" {
+    const testing = std.testing;
+
+    const data = "lorem:\r\n  - Haruka\r\n  - Hanamaru";
     const expected_array: []const Token = &.{
         Token{ .Value = "lorem" },
         TokenType.Colon,

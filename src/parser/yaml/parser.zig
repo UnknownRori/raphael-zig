@@ -67,12 +67,16 @@ pub const Parser = struct {
         while (!self.is_empty()) {
             const tok = self.current() orelse return Error.UnexpectedToken;
             if (tok.equals(TokenType.EndLine)) {
+                self.advance();
                 break;
             }
 
             switch (tok) {
                 .Indent => |n| {
                     try str.appendNTimes(' ', n);
+                },
+                .Colon => {
+                    try str.append(':');
                 },
                 .Value => |n| {
                     try str.appendSlice(n);
@@ -89,16 +93,10 @@ pub const Parser = struct {
         var indent: u32 = 0;
         while (!self.is_empty()) {
             const tok = self.current() orelse return Error.UnexpectedToken;
-            std.debug.print("{any}\n", .{tok});
             switch (tok) {
                 .Indent => |n| indent = n,
-                .Value => |n| {
-                    std.debug.print("{s}\n", .{n});
-                    try values.append(try self.parse_value(allocator, indent));
-                },
-                .EndLine => {
-                    self.advance();
-                },
+                .Value => try values.append(try self.parse_value(allocator, indent)),
+                .EndLine => self.advance(),
                 else => return Error.UnexpectedToken,
             }
         }
@@ -153,12 +151,7 @@ pub const Parser = struct {
         errdefer sequence.deinit();
 
         while (!self.is_empty()) {
-            const tok2 = self.current();
-            std.debug.print("{any}", .{self.current()});
-            switch (tok2.?) {
-                .Value => |n| std.debug.print("{s}", .{n}),
-                else => {},
-            }
+            if (!self.check(Token{ .Indent = indent })) break;
             try self.consume(Token{ .Indent = indent });
             try self.consume(TokenType.Dash);
             try self.consume(Token{ .Indent = 1 });
@@ -168,7 +161,6 @@ pub const Parser = struct {
                 .Value => {
                     const val = try self.get_multiple_value(allocator);
                     try sequence.append(val);
-                    self.advance();
                 },
                 else => return Error.UnexpectedToken,
             }
@@ -253,6 +245,135 @@ test "Parse combined value" {
             try testing.expectEqualStrings("names", seq.key.items);
             try testing.expectEqualStrings("Agustine", seq.value.items[0].items);
             try testing.expectEqualStrings("Haruka", seq.value.items[1].items);
+        },
+        else => try testing.expect(false),
+    }
+}
+
+test "Parse combined value with windows endline" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+    const data = "description: Agusta Nana\r\nnames:\r\n  - Agustine\r\n  - Haruka\r\n  - Hanamaru";
+
+    var parser = try Parser.init(allocator, data);
+    defer parser.deinit();
+
+    var arena = ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const value = try parser.parse(arena.allocator());
+    defer value.deinit();
+
+    try testing.expectEqual(2, value.items.len);
+    switch (value.items[0]) {
+        .Scalar => |scalar| {
+            try testing.expectEqualStrings("description", scalar.key.items);
+            try testing.expectEqualStrings("Agusta Nana", scalar.value.items);
+        },
+        else => try testing.expect(false),
+    }
+
+    switch (value.items[1]) {
+        .Sequence => |seq| {
+            try testing.expectEqual(3, seq.value.items.len);
+            try testing.expectEqualStrings("names", seq.key.items);
+            try testing.expectEqualStrings("Agustine", seq.value.items[0].items);
+            try testing.expectEqualStrings("Haruka", seq.value.items[1].items);
+            try testing.expectEqualStrings("Hanamaru", seq.value.items[2].items);
+        },
+        else => try testing.expect(false),
+    }
+}
+
+test "Parse combined value with raw" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+    const data =
+        \\date: 12415134134
+        \\tags:
+        \\  - daily
+        \\cssclasses:
+        \\  - asdasda
+        \\  - center-h1
+        \\  - center-images
+        \\  - daily
+        \\  - center-h2;
+    ;
+
+    var parser = try Parser.init(allocator, data);
+    defer parser.deinit();
+
+    var arena = ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const value = try parser.parse(arena.allocator());
+    defer value.deinit();
+
+    try testing.expectEqual(3, value.items.len);
+    switch (value.items[0]) {
+        .Scalar => |scalar| {
+            try testing.expectEqualStrings("date", scalar.key.items);
+            try testing.expectEqualStrings("12415134134", scalar.value.items);
+        },
+        else => try testing.expect(false),
+    }
+
+    switch (value.items[1]) {
+        .Sequence => |seq| {
+            try testing.expectEqual(1, seq.value.items.len);
+            try testing.expectEqualStrings("tags", seq.key.items);
+            try testing.expectEqualStrings("daily", seq.value.items[0].items);
+        },
+        else => try testing.expect(false),
+    }
+
+    switch (value.items[2]) {
+        .Sequence => |seq| {
+            try testing.expectEqual(5, seq.value.items.len);
+            try testing.expectEqualStrings("cssclasses", seq.key.items);
+        },
+        else => try testing.expect(false),
+    }
+}
+
+test "Parse combined value with raw 2" {
+    const testing = std.testing;
+    const allocator = testing.allocator;
+    const data =
+        \\tags:
+        \\  - fleeting
+        \\created: 2025-08-08T03:02:00
+        \\cssclasses:
+        \\  - center-h1
+    ;
+
+    var parser = try Parser.init(allocator, data);
+    defer parser.deinit();
+
+    var arena = ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const value = try parser.parse(arena.allocator());
+    defer value.deinit();
+
+    try testing.expectEqual(3, value.items.len);
+    switch (value.items[0]) {
+        .Sequence => |seq| {
+            try testing.expectEqual(1, seq.value.items.len);
+            try testing.expectEqualStrings("tags", seq.key.items);
+            try testing.expectEqualStrings("fleeting", seq.value.items[0].items);
+        },
+        else => try testing.expect(false),
+    }
+
+    switch (value.items[1]) {
+        .Scalar => |scalar| {
+            try testing.expectEqualStrings("created", scalar.key.items);
+        },
+        else => try testing.expect(false),
+    }
+
+    switch (value.items[2]) {
+        .Sequence => |seq| {
+            try testing.expectEqual(1, seq.value.items.len);
+            try testing.expectEqualStrings("cssclasses", seq.key.items);
         },
         else => try testing.expect(false),
     }
