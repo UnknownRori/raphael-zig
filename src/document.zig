@@ -172,7 +172,7 @@ pub const TermFreqDocuments = struct {
             // We don't give a frick with infinite rank like ur mom
             if (std.math.isInf(rank) or std.math.isNan(rank) or rank <= 0) continue;
 
-            try result.append(SearchResult.init(e.key_ptr.*, e.value_ptr.metadata.description.items, rank));
+            try result.append(SearchResult.init(e.key_ptr.*, e.value_ptr.metadata, rank));
         }
 
         std.mem.sort(SearchResult, result.items, {}, SearchResult.compareAsc);
@@ -199,15 +199,15 @@ pub const TermFreqDocuments = struct {
 
 pub const SearchResult = struct {
     filepath: []const u8,
-    description: []const u8,
+    metadata: Metadata,
     weight: f32,
 
     const Self = @This();
 
-    pub fn init(filepath: []const u8, description: []const u8, weight: f32) Self {
+    pub fn init(filepath: []const u8, metadata: Metadata, weight: f32) Self {
         return Self{
             .filepath = filepath,
-            .description = description,
+            .metadata = metadata,
             .weight = weight,
         };
     }

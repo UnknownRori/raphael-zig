@@ -2,6 +2,7 @@ const std = @import("std");
 
 pub const Lexer = @import("./lexer.zig").Lexer;
 pub const TermFreqDocument = @import("./document.zig").TermFreqDocuments;
+pub const Metadata = @import("./metadata.zig").MetaData;
 
 pub const utils = @import("./utils/utils.zig");
 

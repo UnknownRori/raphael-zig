@@ -17,20 +17,36 @@ function addslashes(str) {
 
 /*
  * @param {string} title
- * @param {string} path
- * @param {string} description
+ * @return string
  */
-function createQueryResultCard(title, path, description) {
+function createTagSpan(name) {
+    return `
+    <span class="tag">${name}</span>
+`;
+}
+
+/*
+ * @param {string} title
+ * @param {string} path
+ * @param {Array<string>} tags
+ * @param {string} description
+ * @return string
+ */
+function createQueryResultCard(title, path, tags, description) {
     path = addslashes(path);
+
+    const tagsSpan = tags.map((tag) => createTagSpan(tag)).join("");
+
     return `
             <div class="query-result-card">
                 <div>
+                    <span class="path">
+                        ${path}
+                    </span>
                     <h1 class="query-title text-left" onclick='show("${title}","${path}")'>
                         ${title}
                     </h1>
-                    <span>
-                        ${path}
-                    </span>
+                    ${tagsSpan}
                 </div>
                 <p>
                     ${description}...
@@ -90,7 +106,8 @@ form.addEventListener('submit', async (e) => {
     }
     for (let i = 0; i < json.result.length; i++) {
         const item = json.result[i];
-        container.innerHTML += createQueryResultCard(item.name, item.path, item.description)
+        const metadata = item.metadata;
+        container.innerHTML += createQueryResultCard(item.name, item.path, ["lorem", "ipsum"], metadata.description)
     }
 });
 

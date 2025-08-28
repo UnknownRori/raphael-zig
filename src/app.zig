@@ -5,6 +5,7 @@ const Http = lib.Http;
 const Request = lib.Http.Request;
 const Response = lib.Http.Response;
 const read_file = lib.utils.fs.read_file;
+const Metadata = lib.Metadata;
 
 pub fn usage(writer: anytype, args: [][:0]u8) !void {
     try writer.print("Usage {s} <command>\n", .{args[0]});
@@ -153,9 +154,18 @@ pub const RaphaelController = struct {
             if (i > 4) break;
             i += 1;
 
+            var tags = std.ArrayList([]u8).init(allocator);
+            defer tags.deinit();
+            for (item.metadata.tags.items) |tag| {
+                try tags.append(tag.items);
+            }
+
             const data_query: QueryResult = .{
                 .name = std.fs.path.basename(item.filepath),
-                .description = item.description,
+                .metadata = .{
+                    .description = item.metadata.description.items,
+                    .tags = tags.items,
+                },
                 .path = item.filepath,
                 .weight = item.weight,
             };
@@ -170,6 +180,9 @@ pub const RaphaelController = struct {
 const QueryResult = struct {
     name: []const u8,
     path: []const u8,
-    description: []const u8,
+    metadata: struct {
+        description: []const u8,
+        tags: [][]u8,
+    },
     weight: f32,
 };

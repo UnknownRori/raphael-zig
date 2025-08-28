@@ -10,7 +10,7 @@ const Error = error{
 };
 
 pub const MetaData = struct {
-    tags: std.ArrayList(u8),
+    tags: std.ArrayList(String),
     description: String,
     allocator: Allocator,
 
@@ -18,7 +18,7 @@ pub const MetaData = struct {
 
     pub fn init(allocator: Allocator) Self {
         return Self{
-            .tags = std.ArrayList(u8).init(allocator),
+            .tags = std.ArrayList(String).init(allocator),
             .description = String.init(allocator),
             .allocator = allocator,
         };
@@ -31,7 +31,7 @@ pub const MetaData = struct {
         try jw.objectField("tags");
         try jw.beginArray();
         for (self.tags.items) |item| {
-            try jw.write(item);
+            try jw.write(item.items);
         }
         try jw.endArray();
 
@@ -52,7 +52,9 @@ pub const MetaData = struct {
             return Error.InvalidTag;
         }
         for (tags.?.array.items) |item| {
-            try self.tags.appendSlice(item.string);
+            var str = try String.initCapacity(allocator, item.string.len);
+            try str.appendSlice(item.string);
+            try self.tags.append(str);
         }
 
         return self;

@@ -1,5 +1,6 @@
 :root {
     --rounded: 8px;
+    --rounded-sm: 4px;
 
     --primary-text: white;
     --secondary-text: rgba(255, 255, 255, 0.5);
@@ -11,7 +12,8 @@
     --primary-border-color-hover: white;
 
     --primary-font: "JetBrains Mono";
-    --text-sm: 0.5rem;
+    --text-xs: 0.4rem;
+    --text-sm: 0.6rem;
     --text-md: 1rem;
 }
 
@@ -152,11 +154,23 @@ pre {
     max-width: 60%;
 }
 
-.query-result-card div span {
+.query-result-card div span.path {
     filter: blur(4px);
-    font-size: var(--text-sm);
+    font-size: var(--text-xs);
     color: var(--secondary-text);
     transition: filter 500ms ease-out;
+}
+
+.query-result-card div span.path:hover {
+    filter: blur(0);
+}
+
+.query-result-card div span.tag {
+    font-size: var(--text-sm);
+    font-weight: bold;
+    background-color: rgba(80, 80, 80, 255);
+    padding: 0.2rem 0.4rem;
+    border-radius: var(--rounded-sm);
 }
 
 .query-result-card {
