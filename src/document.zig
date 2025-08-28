@@ -5,6 +5,7 @@ const Lexer = @import("lexer.zig").Lexer;
 const Allocator = std.mem.Allocator;
 const ArenaAllocator = std.heap.ArenaAllocator;
 const Metadata = @import("metadata.zig").MetaData;
+const YAMLParser = @import("./parser/yaml.zig").Parser;
 const read_file = @import("./utils/utils.zig").fs.read_file;
 
 pub const Document = struct {
@@ -24,21 +25,39 @@ pub const Document = struct {
 
     pub fn parse(allocator: Allocator, contents: []const u8) !Self {
         // TODO : Refactor this stuff
-        var description = contents;
+        var metadata = Metadata.init(allocator);
         if (std.mem.startsWith(u8, contents, "---")) {
             var skipHeader = std.mem.splitSequence(u8, contents, "---");
             _ = skipHeader.next().?;
             const header = skipHeader.next().?;
-            description = contents[header.len + 7 ..];
+            var parser = try YAMLParser.init(allocator, header);
+            const meta = try parser.parse(allocator);
+            defer meta.deinit();
+            for (meta.items) |item| {
+                switch (item) {
+                    .Scalar => |n| {
+                        if (std.mem.eql(u8, n.key.items, "description")) {
+                            try metadata.description.appendSlice(n.value.items);
+                        }
+                    },
+                    .Sequence => |n| {
+                        if (std.mem.eql(u8, n.key.items, "tags")) {
+                            for (n.value.items) |tag| {
+                                var tag_temp = try std.ArrayList(u8).initCapacity(allocator, tag.items.len);
+                                try tag_temp.appendSlice(tag.items);
+                                try metadata.tags.append(tag_temp);
+                            }
+                        }
+                    },
+                    else => {},
+                }
+            }
         }
 
-        var max_length: usize = 200;
-        if (description.len <= max_length) max_length = description.len;
-
+        if (metadata.description.items.len <= 0) {
+            try metadata.description.appendSlice("No description provided");
+        }
         const tf_map = try tf.TermFreq.parse(allocator, contents);
-
-        var metadata = Metadata.init(allocator);
-        try metadata.description.appendSlice(description[0..max_length]);
 
         return Self{
             .metadata = metadata,

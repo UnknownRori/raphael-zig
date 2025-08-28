@@ -155,7 +155,6 @@ pub const RaphaelController = struct {
             i += 1;
 
             var tags = std.ArrayList([]u8).init(allocator);
-            defer tags.deinit();
             for (item.metadata.tags.items) |tag| {
                 try tags.append(tag.items);
             }
