@@ -2,6 +2,7 @@ const std = @import("std");
 
 pub const Headers = std.StringArrayHashMap([]const u8);
 pub const Params = std.StringArrayHashMap([]const u8);
+pub const Query = std.StringArrayHashMap([]const u8);
 
 pub const HTTPMethod = enum {
     GET,

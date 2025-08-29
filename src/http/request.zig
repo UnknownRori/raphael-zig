@@ -6,16 +6,30 @@ const String = std.ArrayList(u8);
 const HTTPMethod = @import("./utils.zig").HTTPMethod;
 const Headers = @import("./utils.zig").Headers;
 const Params = @import("./utils.zig").Params;
+const Query = @import("./utils.zig").Query;
 
 pub const Request = struct {
     method: HTTPMethod,
     path: []const u8,
     body: ?std.ArrayList(u8),
     headers: Headers,
+    query: Query,
     params: Params,
     allocator: Allocator,
 
     const Self = @This();
+
+    fn parse_request_path(query_data: *Query, token: ?[]const u8) !void {
+        if (token == null) return;
+        var queries = std.mem.splitSequence(u8, token.?, "&");
+        while (queries.next()) |query| {
+            var tok = std.mem.splitSequence(u8, query, "=");
+            const name = tok.next().?;
+            const value = tok.next().?;
+            try query_data.put(name, value);
+            std.debug.print("{s}-{s}\n", .{ name, value });
+        }
+    }
 
     pub fn parseHeader(allocator: Allocator, buffer: []const u8) !Self {
         var split = std.mem.splitSequence(u8, buffer, "\r\n\r\n");
@@ -26,6 +40,7 @@ pub const Request = struct {
         var method: HTTPMethod = .GET;
         var path: []const u8 = "";
         var headers = Headers.init(allocator);
+        var query = Query.init(allocator);
         const params = Params.init(allocator);
 
         // TODO : Refactor this
@@ -33,22 +48,30 @@ pub const Request = struct {
             if (std.mem.startsWith(u8, line, "GET")) {
                 var splitToken = std.mem.splitSequence(u8, line, " ");
                 _ = splitToken.next().?;
-                path = splitToken.next().?;
+                var betweenQuery = std.mem.splitSequence(u8, splitToken.next().?, "?");
+                path = betweenQuery.next().?;
+                try Request.parse_request_path(&query, betweenQuery.next());
                 method = .GET;
             } else if (std.mem.startsWith(u8, line, "POST")) {
                 var splitToken = std.mem.splitSequence(u8, line, " ");
                 _ = splitToken.next().?;
-                path = splitToken.next().?;
+                var betweenQuery = std.mem.splitSequence(u8, splitToken.next().?, "?");
+                path = betweenQuery.next().?;
+                try Request.parse_request_path(&query, betweenQuery.next());
                 method = .POST;
             } else if (std.mem.startsWith(u8, line, "PATCH")) {
                 var splitToken = std.mem.splitSequence(u8, line, " ");
                 _ = splitToken.next().?;
-                path = splitToken.next().?;
+                var betweenQuery = std.mem.splitSequence(u8, splitToken.next().?, "?");
+                path = betweenQuery.next().?;
+                try Request.parse_request_path(&query, betweenQuery.next());
                 method = .PATCH;
             } else if (std.mem.startsWith(u8, line, "DELETE")) {
                 var splitToken = std.mem.splitSequence(u8, line, " ");
                 _ = splitToken.next().?;
-                path = splitToken.next().?;
+                var betweenQuery = std.mem.splitSequence(u8, splitToken.next().?, "?");
+                path = betweenQuery.next().?;
+                try Request.parse_request_path(&query, betweenQuery.next());
                 method = .DELETE;
             } else if (std.mem.containsAtLeast(u8, line, 1, ": ")) {
                 var splitToken = std.mem.splitSequence(u8, line, ": ");
@@ -67,6 +90,7 @@ pub const Request = struct {
             .body = null,
             .headers = headers,
             .params = params,
+            .query = query,
             .allocator = allocator,
         };
     }
@@ -88,6 +112,7 @@ pub const Request = struct {
 
     pub fn deinit(self: *Self) void {
         self.headers.deinit();
+        self.query.deinit();
         self.params.deinit();
         if (self.body != null) self.body.?.deinit();
     }
