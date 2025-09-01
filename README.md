@@ -3,6 +3,10 @@
 <div align="center">
   <img src="./docs/mascot.png" align="center" />
 </div>
+<div align="center">
+  <span>Art drawn by UnknownRori</span>
+</div>
+
 
 > [!WARNING]
 > Don't expect much on this project.
