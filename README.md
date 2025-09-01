@@ -1,6 +1,8 @@
 # Raphael
 
-<img src="./docs/mascot.png" align="center" />
+<div align="center">
+  <img src="./docs/mascot.png" align="center" />
+</div>
 
 > [!WARNING]
 > Don't expect much on this project.
