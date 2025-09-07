@@ -1,5 +1,6 @@
 const std = @import("std");
 const lib = @import("raphael_zig_lib");
+const flag = @import("flag_zig");
 
 const Http = lib.Http;
 
@@ -11,30 +12,38 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+    const stderr = std.io.getStdErr().writer();
 
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+    var args = flag.ArgsParser.init(allocator);
+    defer args.deinit();
+    const prog = args.program();
+    const dir = try args.flag_str("index", null, "Index a directory");
+    const search = try args.flag_str("search", null, "Search a term");
+    const serve = try args.flag_bool("serve", "Start a local server http://localhost:6969");
+    const help = try args.flag_bool("help", "Show this help menu");
 
-    if (args.len <= 1) {
-        try app.usage(stdout, args);
-        try bw.flush();
+    const parse_result = !try args.parse();
+    if (parse_result) {
+        try usage(stderr, &args, prog.*.?);
         return;
     }
 
-    const command = args[1];
-
-    if (std.mem.eql(u8, "index", command)) {
-        try app.index(allocator, stdout, args);
+    if (help.*) {
+        try usage(stderr, &args, prog.*.?);
+        return;
     }
 
-    if (std.mem.eql(u8, "search", command)) {
-        try app.search(allocator, stdout, args);
-    }
-
-    if (std.mem.eql(u8, "serve", command)) {
+    if (search.* != null) {
+        try app.index(allocator, dir.*.?);
+    } else if (serve.*) {
         try app.serve(allocator);
+    } else if (dir.* != null) {
+        try app.index(allocator, dir.*.?);
     }
+}
+fn usage(stdout: anytype, args: *flag.ArgsParser, program: []const u8) !void {
+    try stdout.print("Raphael is a simple search engine designed for Obsidian vault and also can be used to index a normal markdown file\n\n", .{});
+    try stdout.print("USAGE: {s} [OPTIONS]\n", .{program});
+    try stdout.print("OPTIONS:\n", .{});
+    try args.options_print(stdout);
 }

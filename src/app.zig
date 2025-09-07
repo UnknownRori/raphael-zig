@@ -7,40 +7,20 @@ const Response = lib.Http.Response;
 const read_file = lib.utils.fs.read_file;
 const Metadata = lib.Metadata;
 
-pub fn usage(writer: anytype, args: [][:0]u8) !void {
-    try writer.print("Usage {s} <command>\n", .{args[0]});
-    try writer.print("Command: \n", .{});
-    try writer.print("\t index  <directory>\n", .{});
-    try writer.print("\t search <term>\n", .{});
-    try writer.print("\t serve\n", .{});
+pub fn search(allocator: std.mem.Allocator, term: []const u8) !void {
+    var tfi = try lib.load_index(allocator);
+    defer tfi.deinit();
+
+    const result = try tfi.search(allocator, term);
+    defer result.deinit();
+    for (result.items) |item| {
+        item.print();
+    }
+    return;
 }
 
-pub fn search(allocator: std.mem.Allocator, writer: anytype, args: [][:0]u8) !void {
-    if (args.len <= 3) {
-        const term = args[2];
-
-        var tfi = try lib.load_index(allocator);
-        defer tfi.deinit();
-
-        const result = try tfi.search(allocator, term);
-        defer result.deinit();
-        for (result.items) |item| {
-            item.print();
-        }
-        return;
-    }
-
-    try writer.print("Usage {s} search <term>\n", .{args[0]});
-}
-
-pub fn index(allocator: std.mem.Allocator, writer: anytype, args: [][:0]u8) !void {
-    if (args.len <= 3) {
-        const directory = args[2];
-        try lib.cmd_index(allocator, directory);
-        return;
-    }
-
-    try writer.print("Usage {s} index <directory>\n", .{args[0]});
+pub fn index(allocator: std.mem.Allocator, dir: []const u8) !void {
+    try lib.cmd_index(allocator, dir);
 }
 
 pub fn serve(allocator: std.mem.Allocator) !void {
