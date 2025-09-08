@@ -149,6 +149,17 @@ pub const RaphaelController = struct {
         const self: *Self = @alignCast(@ptrCast(ctx));
         const allocator = res.arena.allocator(); // Borrowing shit
 
+        // TODO : Refactor this into paginator.zig
+        const page_str = req.*.query.get("page") orelse "1";
+        const item_per_page = 10;
+        const page = std.fmt.parseInt(usize, page_str, 10) catch {
+            return try res.json(.BadRequest, .{
+                .status = "error",
+                .message = "Page request param is not an number",
+            });
+        };
+        const offset = (page - 1) * item_per_page;
+
         var data = std.json.parseFromSlice(std.json.Value, allocator, req.body.?.items, .{}) catch |err| {
             std.debug.print("{any}\n", .{err});
             return try res.json(.InternalServerError, .{
@@ -163,12 +174,19 @@ pub const RaphaelController = struct {
         defer result.deinit();
 
         var result_item = std.ArrayList(QueryResult).init(allocator);
+        var temp_result = result.items;
 
-        var i: usize = 0;
-        for (result.items) |item| {
-            if (i > 4) break;
-            i += 1;
+        if (temp_result.len > offset) {
+            var max_offset = offset + item_per_page;
+            if (max_offset > temp_result.len) {
+                max_offset = temp_result.len;
+            }
+            temp_result = temp_result[offset..max_offset];
+        } else {
+            temp_result.len = 0;
+        }
 
+        for (temp_result) |item| {
             var tags = std.ArrayList([]u8).init(allocator);
             for (item.metadata.tags.items) |tag| {
                 try tags.append(tag.items);
