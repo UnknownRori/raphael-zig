@@ -152,12 +152,15 @@ pub const RaphaelController = struct {
         // TODO : Refactor this into paginator.zig
         const page_str = req.*.query.get("page") orelse "1";
         const item_per_page = 10;
-        const page = std.fmt.parseInt(usize, page_str, 10) catch {
+        var page = std.fmt.parseInt(usize, page_str, 10) catch {
             return try res.json(.BadRequest, .{
                 .status = "error",
                 .message = "Page request param is not an number",
             });
         };
+        if (page < 1) {
+            page = 1;
+        }
         const offset = (page - 1) * item_per_page;
 
         var data = std.json.parseFromSlice(std.json.Value, allocator, req.body.?.items, .{}) catch |err| {
