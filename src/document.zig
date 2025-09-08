@@ -171,7 +171,7 @@ pub const TermFreqDocuments = struct {
         try self.index_recursive(dir);
 
         std.debug.print("\n--------------\n", .{});
-        std.debug.print("Indexed: {d} files", .{self.map.count()});
+        std.debug.print("Indexed: {d} files\n", .{self.map.count()});
     }
 
     pub fn search(self: *Self, allocator: Allocator, term: []const u8) !std.ArrayList(SearchResult) {

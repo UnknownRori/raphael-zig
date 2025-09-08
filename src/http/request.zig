@@ -27,7 +27,6 @@ pub const Request = struct {
             const name = tok.next().?;
             const value = tok.next().?;
             try query_data.put(name, value);
-            std.debug.print("{s}-{s}\n", .{ name, value });
         }
     }
 
