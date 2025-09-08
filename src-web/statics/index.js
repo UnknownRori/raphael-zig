@@ -2,6 +2,8 @@ const input = document.querySelector("#query");
 const queryResultContainer = document.querySelector("#query-result");
 const form = document.querySelector("#query-form");
 
+let page = 1;
+
 /*
  * @param {string} str
  */
@@ -16,6 +18,27 @@ function addslashes(str) {
 function createTagSpan(name) {
     return `
     <span class="tag">${name}</span>
+`;
+}
+
+function createPaginationButton(page, item, itemPerPage, total) {
+    // TODO : Make the pagination button nice
+    // Make them disabled instead just gone
+    const back = `
+        <button class="btn" onclick='pageBack()'>
+            &lt
+        </button>
+`;
+    const next = `
+        <button class="btn" onclick='pageNext()'>
+            >
+        </button>
+`;
+    return `
+    <div class="text-center">
+        ${page > 1 ? back : ''}
+        ${(page * itemPerPage) < total ? next : ''}
+    </div>
 `;
 }
 
@@ -75,11 +98,8 @@ async function show(name, path) {
     container.innerHTML += marked.parse(content);
 }
 
-
-form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const result = await fetch("http://localhost:6969/query", {
+async function fetchSearchQuery() {
+    const result = await fetch(`http://localhost:6969/query?page=${page}`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -103,5 +123,25 @@ form.addEventListener('submit', async (e) => {
         const metadata = item.metadata;
         container.innerHTML += createQueryResultCard(item.name, item.path, metadata.tags, metadata.description)
     }
+
+    const pagination = json.pagination;
+    container.innerHTML += createPaginationButton(pagination.page, pagination.item, pagination.max_item, pagination.total_item);
+}
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    page = 1;
+    await fetchSearchQuery();
 });
 
+
+async function pageBack() {
+    if (page > 1) {
+        page -= 1;
+    }
+    await fetchSearchQuery();
+}
+
+async function pageNext() {
+    page += 1;
+    await fetchSearchQuery();
+}
