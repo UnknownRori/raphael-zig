@@ -176,8 +176,8 @@ pub const RaphaelController = struct {
         var result_item = std.ArrayList(QueryResult).init(allocator);
         var temp_result = result.items;
 
+        var max_offset = offset + item_per_page;
         if (temp_result.len > offset) {
-            var max_offset = offset + item_per_page;
             if (max_offset > temp_result.len) {
                 max_offset = temp_result.len;
             }
@@ -205,7 +205,16 @@ pub const RaphaelController = struct {
             try result_item.append(data_query);
         }
 
-        try res.json(.Ok, .{ .status = "success", .result = result_item.items });
+        try res.json(.Ok, .{
+            .status = "success",
+            .result = result_item.items,
+            .pagination = .{
+                .page = page,
+                .item = result_item.items.len,
+                .max_item = item_per_page,
+                .total_item = result.items.len,
+            },
+        });
     }
 };
 
