@@ -1,3 +1,6 @@
 [submodule "external/flag.zig"]
 	path = external/flag.zig
 	url = https://github.com/UnknownRori/flag.zig
+[submodule "external/yaml.zig"]
+	path = external/yaml.zig
+	url = https://github.com/UnknownRori/yaml.zig

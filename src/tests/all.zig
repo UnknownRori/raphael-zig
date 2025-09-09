@@ -5,7 +5,4 @@ test {
     _ = @import("./http/route.zig");
     _ = @import("./http/router.zig");
     _ = @import("./tf/tf.zig");
-
-    _ = @import("../parser/yaml/lexer.zig");
-    _ = @import("../parser/yaml/parser.zig");
 }

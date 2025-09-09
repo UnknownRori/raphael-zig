@@ -5,7 +5,7 @@ const Lexer = @import("lexer.zig").Lexer;
 const Allocator = std.mem.Allocator;
 const ArenaAllocator = std.heap.ArenaAllocator;
 const Metadata = @import("metadata.zig").MetaData;
-const YAMLParser = @import("./parser/yaml.zig").Parser;
+const YAMLParser = @import("yaml_zig").Parser;
 const read_file = @import("./utils/utils.zig").fs.read_file;
 
 pub const Document = struct {
