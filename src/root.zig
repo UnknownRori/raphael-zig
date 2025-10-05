@@ -10,13 +10,13 @@ pub const Http = @import("./http/http.zig");
 
 const Allocator = std.mem.Allocator;
 
-fn json_config() std.json.StringifyOptions {
+fn json_config() std.json.Stringify.Options {
     const mode = @import("builtin").mode;
     if (mode == .Debug) {
-        return std.json.StringifyOptions{ .whitespace = .indent_1 };
+        return std.json.Stringify.Options{ .whitespace = .indent_1 };
     }
 
-    return std.json.StringifyOptions{ .whitespace = .minified };
+    return std.json.Stringify.Options{ .whitespace = .minified };
 }
 
 pub fn cmd_index(allocator: Allocator, directory: []const u8) !void {
@@ -25,11 +25,12 @@ pub fn cmd_index(allocator: Allocator, directory: []const u8) !void {
 
     try tfi.index(directory);
 
-    var buffer = std.ArrayList(u8).init(allocator);
-    defer buffer.deinit();
+    var buffer = try std.ArrayList(u8).initCapacity(allocator, 4096);
+    defer buffer.deinit(allocator);
 
-    var jw = std.json.writeStream(buffer.writer(), json_config());
-    defer jw.deinit();
+    const buffer_allocating = std.Io.Writer.Allocating.init(allocator);
+    var writer = buffer_allocating.writer;
+    var jw = std.json.Stringify{ .writer = &writer, .options = json_config() };
     try tfi.serializeJson(&jw);
 
     var index_file = try std.fs.cwd().createFile("index.json", .{});
@@ -38,18 +39,20 @@ pub fn cmd_index(allocator: Allocator, directory: []const u8) !void {
 }
 
 pub fn load_index(allocator: Allocator) !TermFreqDocument {
-    var str = std.ArrayList(u8).init(allocator);
-    defer str.deinit();
+    var str = try std.ArrayList(u8).initCapacity(allocator, 4096);
+    defer str.deinit(allocator);
 
     var fd = try std.fs.cwd().openFile("index.json", .{});
     defer fd.close();
-    var buf_reader = std.io.bufferedReader(fd.reader());
-    var in_reader = buf_reader.reader();
+    var buffer: [4096]u8 = undefined;
+    var buf_reader = fd.reader(&buffer);
 
     var buf: [4096]u8 = undefined;
-    while (try in_reader.readUntilDelimiterOrEof(&buf, '\n')) |line| {
-        try str.appendSlice(line);
-        try str.append('\n');
+    while (buf_reader.atEnd()) {
+        const size = buf_reader.read(&buf) catch {
+            break;
+        };
+        try str.appendSlice(allocator, buf[0..size]);
     }
     return try TermFreqDocument.fromJson(allocator, str.items);
 }

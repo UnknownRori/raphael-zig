@@ -25,27 +25,27 @@ pub const Document = struct {
 
     pub fn parse(allocator: Allocator, contents: []const u8) !Self {
         // TODO : Refactor this stuff
-        var metadata = Metadata.init(allocator);
+        var metadata = try Metadata.init(allocator);
         if (std.mem.startsWith(u8, contents, "---")) {
             var skipHeader = std.mem.splitSequence(u8, contents, "---");
             _ = skipHeader.next().?;
             const header = skipHeader.next().?;
             var parser = try YAMLParser.init(allocator, header);
-            const meta = try parser.parse(allocator);
-            defer meta.deinit();
+            var meta = try parser.parse(allocator);
+            defer meta.deinit(allocator);
             for (meta.items) |item| {
                 switch (item) {
                     .Scalar => |n| {
                         if (std.mem.eql(u8, n.key.items, "description")) {
-                            try metadata.description.appendSlice(n.value.items);
+                            try metadata.description.appendSlice(allocator, n.value.items);
                         }
                     },
                     .Sequence => |n| {
                         if (std.mem.eql(u8, n.key.items, "tags")) {
                             for (n.value.items) |tag| {
                                 var tag_temp = try std.ArrayList(u8).initCapacity(allocator, tag.items.len);
-                                try tag_temp.appendSlice(tag.items);
-                                try metadata.tags.append(tag_temp);
+                                try tag_temp.appendSlice(allocator, tag.items);
+                                try metadata.tags.append(allocator, tag_temp);
                             }
                         }
                     },
@@ -55,7 +55,7 @@ pub const Document = struct {
         }
 
         if (metadata.description.items.len <= 0) {
-            try metadata.description.appendSlice("No description provided");
+            try metadata.description.appendSlice(allocator, "No description provided");
         }
         const tf_map = try tf.TermFreq.parse(allocator, contents);
 
@@ -175,7 +175,7 @@ pub const TermFreqDocuments = struct {
     }
 
     pub fn search(self: *Self, allocator: Allocator, term: []const u8) !std.ArrayList(SearchResult) {
-        var result = std.ArrayList(SearchResult).init(allocator);
+        var result = try std.ArrayList(SearchResult).initCapacity(allocator, 10);
 
         var tfi_iter = self.map.iterator();
         const term_uppercase = try std.ascii.allocUpperString(allocator, term);
@@ -191,7 +191,7 @@ pub const TermFreqDocuments = struct {
             // We don't give a frick with infinite rank like ur mom
             if (std.math.isInf(rank) or std.math.isNan(rank) or rank <= 0) continue;
 
-            try result.append(SearchResult.init(e.key_ptr.*, e.value_ptr.metadata, rank));
+            try result.append(allocator, SearchResult.init(e.key_ptr.*, e.value_ptr.metadata, rank));
         }
 
         std.mem.sort(SearchResult, result.items, {}, SearchResult.compareAsc);

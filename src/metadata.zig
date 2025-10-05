@@ -16,10 +16,10 @@ pub const MetaData = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator) Self {
+    pub fn init(allocator: Allocator) !Self {
         return Self{
-            .tags = std.ArrayList(String).init(allocator),
-            .description = String.init(allocator),
+            .tags = try std.ArrayList(String).initCapacity(allocator, 10),
+            .description = try String.initCapacity(allocator, 10),
             .allocator = allocator,
         };
     }
@@ -39,13 +39,13 @@ pub const MetaData = struct {
     }
 
     pub fn deserializeJson(allocator: Allocator, object: std.json.ObjectMap) Error!Self {
-        var self = Self.init(allocator);
+        var self = try Self.init(allocator);
 
         const description = object.get("description");
         if (description == null) {
             return Error.InvalidDescription;
         }
-        try self.description.appendSlice(description.?.string);
+        try self.description.appendSlice(allocator, description.?.string);
 
         const tags = object.get("tags");
         if (tags == null) {
@@ -53,8 +53,8 @@ pub const MetaData = struct {
         }
         for (tags.?.array.items) |item| {
             var str = try String.initCapacity(allocator, item.string.len);
-            try str.appendSlice(item.string);
-            try self.tags.append(str);
+            try str.appendSlice(allocator, item.string);
+            try self.tags.append(allocator, str);
         }
 
         return self;
@@ -62,9 +62,9 @@ pub const MetaData = struct {
 
     pub fn deinit(self: *Self) void {
         for (self.tags.items) |item| {
-            item.deinit();
+            item.deinit(self.allocator);
         }
-        self.tags.deinit();
-        self.description.deinit();
+        self.tags.deinit(self.allocator);
+        self.description.deinit(self.allocator);
     }
 };

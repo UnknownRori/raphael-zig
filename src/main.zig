@@ -12,9 +12,11 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const stderr = std.io.getStdErr().writer();
+    const stderr_file = std.fs.File.stderr();
+    var buffer: [1024]u8 = undefined;
+    var stderr = stderr_file.writer(&buffer).interface;
 
-    var args = flag.ArgsParser.init(allocator);
+    var args = try flag.ArgsParser.init(allocator);
     defer args.deinit();
     const prog = args.program();
     const dir = try args.flag_str("index", null, "Index a directory");
@@ -24,12 +26,12 @@ pub fn main() !void {
 
     const parse_result = !try args.parse();
     if (parse_result) {
-        try usage(stderr, &args, prog.*.?);
+        try usage(&stderr, &args, prog.*.?);
         return;
     }
 
     if (help.*) {
-        try usage(stderr, &args, prog.*.?);
+        try usage(&stderr, &args, prog.*.?);
         return;
     }
 

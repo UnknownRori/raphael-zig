@@ -26,7 +26,7 @@ pub fn index(allocator: std.mem.Allocator, dir: []const u8) !void {
 pub fn serve(allocator: std.mem.Allocator) !void {
     const tfi = try lib.load_index(allocator);
 
-    var router = lib.Http.Router.init(allocator);
+    var router = try lib.Http.Router.init(allocator);
 
     var raphael_controller = try RaphaelController.init(tfi);
     defer raphael_controller.deinit();
@@ -72,7 +72,7 @@ pub const RaphaelController = struct {
     }
 
     pub fn load_favico(ctx: *anyopaque, req: *Request, res: *Response) !void {
-        const self: *Self = @alignCast(@ptrCast(ctx));
+        const self: *Self = @ptrCast(@alignCast(ctx));
 
         const contents = read_file(res.arena.allocator(), self.dir, "statics/favicon.ico") catch |err| {
             std.debug.print("[-] {any}\n", .{err});
@@ -85,7 +85,7 @@ pub const RaphaelController = struct {
     }
 
     pub fn load_sw(ctx: *anyopaque, req: *Request, res: *Response) !void {
-        const self: *Self = @alignCast(@ptrCast(ctx));
+        const self: *Self = @ptrCast(@alignCast(ctx));
 
         const contents = read_file(res.arena.allocator(), self.dir, "statics/sw.js") catch |err| {
             std.debug.print("[-] {any}\n", .{err});
@@ -99,7 +99,7 @@ pub const RaphaelController = struct {
 
     pub fn assets(ctx: *anyopaque, req: *Request, res: *Response) !void {
         // TODO : Create abstraction for this thing
-        const self: *Self = @alignCast(@ptrCast(ctx));
+        const self: *Self = @ptrCast(@alignCast(ctx));
         const dir = self.dir;
 
         const path = try std.mem.replaceOwned(u8, res.arena.allocator(), req.path[1..], "../", "");
@@ -120,7 +120,7 @@ pub const RaphaelController = struct {
     }
 
     pub fn show(ctx: *anyopaque, req: *Request, res: *Response) !void {
-        const self: *Self = @alignCast(@ptrCast(ctx));
+        const self: *Self = @ptrCast(@alignCast(ctx));
         const allocator = res.arena.allocator(); // Borrowing shit
 
         var data = std.json.parseFromSlice(std.json.Value, allocator, req.body.?.items, .{}) catch |err| {
@@ -133,8 +133,8 @@ pub const RaphaelController = struct {
         defer data.deinit();
 
         const query_input = data.value.object.get("file").?.string;
-        const result = try self.tfi.search(allocator, query_input);
-        defer result.deinit();
+        var result = try self.tfi.search(allocator, query_input);
+        defer result.deinit(allocator);
 
         const dir = try std.fs.cwd().openDir(std.fs.path.dirname(query_input).?, .{ .iterate = true });
         const contents = read_file(res.arena.allocator(), dir, std.fs.path.basename(query_input)) catch |err| {
@@ -146,7 +146,7 @@ pub const RaphaelController = struct {
     }
 
     pub fn query(ctx: *anyopaque, req: *Request, res: *Response) !void {
-        const self: *Self = @alignCast(@ptrCast(ctx));
+        const self: *Self = @ptrCast(@alignCast(ctx));
         const allocator = res.arena.allocator(); // Borrowing shit
 
         // TODO : Refactor this into paginator.zig
@@ -173,10 +173,10 @@ pub const RaphaelController = struct {
         defer data.deinit();
 
         const query_input = data.value.object.get("query").?.string;
-        const result = try self.tfi.search(allocator, query_input);
-        defer result.deinit();
+        var result = try self.tfi.search(allocator, query_input);
+        defer result.deinit(allocator);
 
-        var result_item = std.ArrayList(QueryResult).init(allocator);
+        var result_item = try std.ArrayList(QueryResult).initCapacity(allocator, 10);
         var temp_result = result.items;
 
         var max_offset = offset + item_per_page;
@@ -190,9 +190,9 @@ pub const RaphaelController = struct {
         }
 
         for (temp_result) |item| {
-            var tags = std.ArrayList([]u8).init(allocator);
+            var tags = try std.ArrayList([]u8).initCapacity(allocator, 1);
             for (item.metadata.tags.items) |tag| {
-                try tags.append(tag.items);
+                try tags.append(allocator, tag.items);
             }
 
             const data_query: QueryResult = .{
@@ -205,7 +205,7 @@ pub const RaphaelController = struct {
                 .weight = item.weight,
             };
 
-            try result_item.append(data_query);
+            try result_item.append(allocator, data_query);
         }
 
         try res.json(.Ok, .{

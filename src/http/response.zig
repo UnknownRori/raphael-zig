@@ -50,31 +50,34 @@ pub const Response = struct {
     }
 
     pub fn json(self: *Self, code: HTTPStatus, content: anytype) !void {
-        const data = try std.json.stringifyAlloc(self.arena.allocator(), content, .{});
-        try self.response(code, .JSON, data);
+        var buffer_allocating = std.Io.Writer.Allocating.init(self.arena.allocator());
+        var writer = buffer_allocating.writer;
+        var jw = std.json.Stringify{ .writer = &writer, .options = .{ .whitespace = .minified } };
+        try jw.write(content);
+        try self.response(code, .JSON, buffer_allocating.toArrayList().items);
     }
 
     pub fn send(self: *Self, stream: std.net.Stream) !void {
         var strResponse = try std.ArrayList(u8).initCapacity(self.arena.allocator(), 1024);
-        defer strResponse.deinit();
+        defer strResponse.deinit(self.arena.allocator());
 
         const httpCode = try std.fmt.allocPrint(self.arena.allocator(), "HTTP/1.1 {} {s}\r\n", .{
             @intFromEnum(self.status),
             self.status.to_string(),
         });
         defer self.arena.allocator().free(httpCode);
-        try strResponse.appendSlice(httpCode);
+        try strResponse.appendSlice(self.arena.allocator(), httpCode);
 
         if (self.body != null) {
             const content_type = try std.fmt.allocPrint(self.arena.allocator(), "Content-Type: {s}\r\n", .{self.content_type.to_string()});
-            try strResponse.appendSlice(content_type);
+            try strResponse.appendSlice(self.arena.allocator(), content_type);
             defer self.arena.allocator().free(content_type);
 
             const content_length = try std.fmt.allocPrint(self.arena.allocator(), "Content-Length: {}\r\n\r\n", .{self.body.?.len});
-            try strResponse.appendSlice(content_length);
+            try strResponse.appendSlice(self.arena.allocator(), content_length);
             defer self.arena.allocator().free(content_length);
 
-            try strResponse.appendSlice(self.body.?);
+            try strResponse.appendSlice(self.arena.allocator(), self.body.?);
         }
 
         _ = try stream.write(strResponse.items);
