@@ -25,17 +25,16 @@ pub fn cmd_index(allocator: Allocator, directory: []const u8) !void {
 
     try tfi.index(directory);
 
-    var buffer = try std.ArrayList(u8).initCapacity(allocator, 4096);
-    defer buffer.deinit(allocator);
-
-    const buffer_allocating = std.Io.Writer.Allocating.init(allocator);
+    var buffer_allocating = std.Io.Writer.Allocating.init(allocator);
+    try buffer_allocating.ensureTotalCapacity(1024 * 1024);
     var writer = buffer_allocating.writer;
     var jw = std.json.Stringify{ .writer = &writer, .options = json_config() };
     try tfi.serializeJson(&jw);
+    try writer.flush();
 
     var index_file = try std.fs.cwd().createFile("index.json", .{});
     defer index_file.close();
-    try index_file.writeAll(buffer.items);
+    try index_file.writeAll(writer.buffer);
 }
 
 pub fn load_index(allocator: Allocator) !TermFreqDocument {

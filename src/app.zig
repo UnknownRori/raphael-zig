@@ -11,8 +11,8 @@ pub fn search(allocator: std.mem.Allocator, term: []const u8) !void {
     var tfi = try lib.load_index(allocator);
     defer tfi.deinit();
 
-    const result = try tfi.search(allocator, term);
-    defer result.deinit();
+    var result = try tfi.search(allocator, term);
+    defer result.deinit(allocator);
     for (result.items) |item| {
         item.print();
     }

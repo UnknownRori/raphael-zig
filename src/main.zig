@@ -13,8 +13,8 @@ pub fn main() !void {
     const allocator = gpa.allocator();
 
     const stderr_file = std.fs.File.stderr();
-    var buffer: [1024]u8 = undefined;
-    var stderr = stderr_file.writer(&buffer).interface;
+    // For some reason it fail in here if using buffer
+    var stderr = stderr_file.writer(&.{}).interface;
 
     var args = try flag.ArgsParser.init(allocator);
     defer args.deinit();
@@ -36,7 +36,7 @@ pub fn main() !void {
     }
 
     if (search.* != null) {
-        try app.index(allocator, dir.*.?);
+        try app.search(allocator, search.*.?);
     } else if (serve.*) {
         try app.serve(allocator);
     } else if (dir.* != null) {
@@ -48,4 +48,5 @@ fn usage(stdout: anytype, args: *flag.ArgsParser, program: []const u8) !void {
     try stdout.print("USAGE: {s} [OPTIONS]\n", .{program});
     try stdout.print("OPTIONS:\n", .{});
     try args.options_print(stdout);
+    try stdout.flush();
 }
