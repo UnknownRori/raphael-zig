@@ -33,7 +33,7 @@ OPTIONS:
 
 ## Development
 
-Make sure you have `zig 0.14.1`
+Make sure you have `zig 0.15.1`
 
 ```sh
 git clone https://github.com/UnknownRori/raphael-zig
