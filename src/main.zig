@@ -12,9 +12,11 @@ pub fn main() !void {
     defer _ = gpa.deinit();
     const allocator = gpa.allocator();
 
-    const stderr = std.io.getStdErr().writer();
+    const stderr_file = std.fs.File.stderr();
+    // For some reason it fail in here if using buffer
+    var stderr = stderr_file.writer(&.{}).interface;
 
-    var args = flag.ArgsParser.init(allocator);
+    var args = try flag.ArgsParser.init(allocator);
     defer args.deinit();
     const prog = args.program();
     const dir = try args.flag_str("index", null, "Index a directory");
@@ -24,17 +26,17 @@ pub fn main() !void {
 
     const parse_result = !try args.parse();
     if (parse_result) {
-        try usage(stderr, &args, prog.*.?);
+        try usage(&stderr, &args, prog.*.?);
         return;
     }
 
     if (help.*) {
-        try usage(stderr, &args, prog.*.?);
+        try usage(&stderr, &args, prog.*.?);
         return;
     }
 
     if (search.* != null) {
-        try app.index(allocator, dir.*.?);
+        try app.search(allocator, search.*.?);
     } else if (serve.*) {
         try app.serve(allocator);
     } else if (dir.* != null) {
@@ -46,4 +48,5 @@ fn usage(stdout: anytype, args: *flag.ArgsParser, program: []const u8) !void {
     try stdout.print("USAGE: {s} [OPTIONS]\n", .{program});
     try stdout.print("OPTIONS:\n", .{});
     try args.options_print(stdout);
+    try stdout.flush();
 }

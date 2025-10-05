@@ -34,8 +34,8 @@ pub const Server = struct {
     }
 
     pub fn listen(self: *Self) !void {
-        var server = try self.addr.listen(.{ .reuse_address = true, .reuse_port = true });
-        std.debug.print("Listening at {}\n", .{server.listen_address});
+        var server = try self.addr.listen(.{ .reuse_address = true });
+        std.debug.print("Listening at {any}\n", .{server.listen_address.in});
         defer server.deinit();
 
         // TODO : MEM LEAK SOMEWHERE
@@ -57,31 +57,24 @@ fn handle(parent_allocator: Allocator, router: Router, client: net.Server.Connec
     const allocator = arena.allocator();
     defer arena.deinit();
 
-    var buffer = String.init(allocator);
-    defer buffer.deinit();
-    const writer = buffer.writer();
-
-    var buffered_reader = std.io.bufferedReader(client.stream.reader());
-    var reader = buffered_reader.reader();
+    var buffer = std.Io.Writer.Allocating.init(allocator);
+    buffer.deinit();
+    var writer = buffer.writer;
 
     var buf: [1024]u8 = undefined;
+    var reader = client.stream.reader(&buf).interface_state;
+
     while (true) {
-        const line = reader.readUntilDelimiter(&buf, '\n') catch {
+        _ = reader.stream(&writer, .unlimited) catch {
             break;
         };
-        const trimmed = std.mem.trimRight(u8, line, "\r");
-
-        if (trimmed.len == 0) break;
-
-        _ = try writer.write(trimmed);
-        _ = try writer.write("\r\n");
     }
 
-    var request = try Request.parseHeader(allocator, buffer.items);
+    var request = try Request.parseHeader(allocator, buffer.toArrayList().items);
     defer request.deinit();
-    try request.parseBody(reader);
+    try request.parseBody(&reader);
 
-    std.debug.print("[{s}] {} - {s}\n", .{ request.method.to_string(), client.address, request.path });
+    std.debug.print("[{s}] {any} - {s}\n", .{ request.method.to_string(), client.address.in, request.path });
 
     var response = Response.init(allocator);
     defer response.deinit();

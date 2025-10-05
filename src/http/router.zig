@@ -15,20 +15,20 @@ pub const Router = struct {
 
     const Self = @This();
 
-    pub fn init(allocator: Allocator) Self {
+    pub fn init(allocator: Allocator) !Self {
         return Self{
-            .routes = std.ArrayList(Route).init(allocator),
+            .routes = try std.ArrayList(Route).initCapacity(allocator, 10),
             .allocator = allocator,
             .not_found = null,
         };
     }
 
-    pub fn deinit(self: Self) void {
-        self.routes.deinit();
+    pub fn deinit(self: *Self) void {
+        self.routes.deinit(self.allocator);
     }
 
     pub fn add(self: *Self, path: []const u8, method: Method, ctx: *anyopaque, handler: anytype) !void {
-        try self.routes.append(Route.init(path, method, ctx, handler));
+        try self.routes.append(self.allocator, Route.init(path, method, ctx, handler));
     }
 
     pub fn get(self: *Self, path: []const u8, ctx: *anyopaque, handler: anytype) !void {

@@ -94,17 +94,17 @@ pub const Request = struct {
         };
     }
 
-    pub fn parseBody(self: *Self, reader: anytype) !void {
+    pub fn parseBody(self: *Self, reader: *std.Io.Reader) !void {
         const length_option = self.headers.get("Content-Length");
         var length: i32 = 0;
         if (length_option != null) length = try std.fmt.parseInt(u8, length_option.?, 10);
 
-        var str = std.ArrayList(u8).init(self.allocator);
+        var str = try std.ArrayList(u8).initCapacity(self.allocator, 256);
         while (length > 0) {
             length -= 1;
 
-            const byte = try reader.readByte();
-            try str.append(byte);
+            const byte = try reader.takeByte();
+            try str.append(self.allocator, byte);
         }
         self.body = str;
     }
@@ -113,6 +113,6 @@ pub const Request = struct {
         self.headers.deinit();
         self.query.deinit();
         self.params.deinit();
-        if (self.body != null) self.body.?.deinit();
+        if (self.body != null) self.body.?.deinit(self.allocator);
     }
 };
